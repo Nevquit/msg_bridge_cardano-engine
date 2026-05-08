@@ -11,6 +11,20 @@
             "token_home": "0xd6Ed4F1F50Cae0c5c7F514F3D0B1220c4a78F71d",
             "gx_token": "0x0B40EF8f0bA69C39f8dD7Eeab073275c72593aa2",
             "wmb_gateway": "0xDDddd58428706FEdD013b3A761c6E40723a7911d"
+        },
+        "mainnet": {
+            "cardano": {
+                "outbound_demo": "",
+                "inbound_demo": "",
+                "xport": "",
+                "outbound_token_policy": "",
+                "inbound_token_policy": ""
+            },
+            "evm": {
+                "token_home": "",
+                "gx_token": "",
+                "wmb_gateway": ""
+            }
         }
     }
 }

@@ -10,6 +10,9 @@
     "evm": {
         "preprod": {
             "url": "https://gwan-ssl.wandevs.org:46891/"
+        },
+        "mainnet": {
+            "url": "https://gwan-ssl.wandevs.org:46891/"
         }
     }
 }

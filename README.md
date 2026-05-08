@@ -60,6 +60,22 @@ graph TD
     CSV --> IU
 ```
 
+## XPort Workflows
+
+### 1. From EVM to Cardano (Inbound)
+1. **Initiation**: A user or DApp on EVM calls the `send()` function on the `TokenHome` contract (which interfaces with `WmbGateway`).
+2. **Observation**: The `msg-agent` (Relay Agent) monitors the EVM chain for `MessageSent` events.
+3. **Relay**: The agent collects MPC signatures and builds an Inbound transaction on Cardano.
+4. **Execution**: The transaction mints an `InboundToken` and sends it to the target Cardano DApp script with a `CrossMsgData` datum.
+5. **Consumption**: The Cardano DApp script validates the `InboundToken` and executes the intended logic (e.g., unlocking assets).
+
+### 2. From Cardano to EVM (Outbound)
+1. **Initiation**: A Cardano DApp script initiates a message by sending assets to the `OutboundDemo` script.
+2. **Token Minting**: The transaction mints an `OutboundToken` and sends it to the `XPort` contract with a `CrossMsgData` datum.
+3. **Observation**: The `msg-agent` monitors the Cardano `XPort` contract address for new UTxOs containing `OutboundTokens`.
+4. **Proof Submission**: The agent generates a proof of the Cardano transaction and submits it to `WmbGateway.receiveMessageNonEvm()` on the EVM side.
+5. **Execution**: `WmbGateway` verifies the proof and triggers the `wmbReceive()` function on the target EVM contract.
+
 ## Getting Started
 
 ### Prerequisites
