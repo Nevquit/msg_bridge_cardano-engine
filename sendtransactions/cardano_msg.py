@@ -5,8 +5,6 @@ from pycardano import (
     Value, MultiAsset, AssetName, Asset, PolicyId,
     PlutusV2Script, Redeemer
 )
-from cbor2 import dumps
-
 from pycardano import PlutusData, Datum, RawPlutusData
 import cbor2
 
