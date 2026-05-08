@@ -42,8 +42,8 @@ def main_menu(direction, case_file, network):
         print(f"2. 🔍 Check {target_name} Balances")
         print(f"3. 💸 Distribute Funds ({target_name})")
         print("4. 🚀 Run Transactions")
-        print("6. 🔙 Change Direction/Case")
-        print("7. 🚪 Exit")
+        print("5. 🔙 Change Direction/Case")
+        print("6. 🚪 Exit")
         print("="*50)
         choice = input("👉 Choice: ").strip()
 
@@ -85,14 +85,14 @@ def main_menu(direction, case_file, network):
             else:
                 run_evm_to_cardano(case_file, network)
 
-        elif choice == '6': return
-        elif choice == '7': sys.exit(0)
+        elif choice == '5': return
+        elif choice == '6': sys.exit(0)
 
 def run_cardano_to_evm(case_file, network, context):
     info = get_cardano_wallet_info()
     if not info: return
     _, _, batch_wallets, _ = info
-    cases = pd.read_csv(case_file).to_dict('records')
+    cases = pd.read_csv(os.path.join("testcases", case_file)).to_dict('records')
 
     with open('config/contract_accounts.json', 'r') as f:
         contracts = json.load(f)[network]['cardano']
@@ -117,7 +117,7 @@ def run_evm_to_cardano(case_file, network):
     info = get_evm_wallet_info()
     if not info: return
     _, _, batch_wallets, _ = info
-    cases = pd.read_csv(case_file).to_dict('records')
+    cases = pd.read_csv(os.path.join("testcases", case_file)).to_dict('records')
 
     with open('config/rpc.json', 'r') as f:
         rpc_url = json.load(f)['evm'][network]['url']

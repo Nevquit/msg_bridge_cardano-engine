@@ -2,35 +2,57 @@ import json
 from pycardano import (
     Address, TransactionBuilder, TransactionOutput,
     BlockFrostChainContext, Network, PaymentSigningKey,
-    Value, MultiAsset, AssetName, Asset
+    Value, MultiAsset, AssetName, Asset, PolicyId,
+    PlutusV2Script, Redeemer
 )
 from cbor2 import dumps
 
+from pycardano import PlutusData, Datum, RawPlutusData
+import cbor2
+
 def cardano_to_evm_msg(context, sender_sk_hex, target_address_evm, amount, outbound_demo_addr, outbound_token_policy, demo_token_policy=None, demo_token_name=None):
+    """
+    Builds and submits a transaction to initiate a Cardano -> EVM cross-chain message.
+    Following XPort protocol:
+    1. Send assets to OutboundDemo script with BeneficiaryData datum.
+    2. (Optional/Advanced) Mint OutBoundToken.
+    """
     # Load signer
     payment_signing_key = PaymentSigningKey.from_primitive(bytes.fromhex(sender_sk_hex))
     sender_addr = Address(payment_signing_key.to_verification_key().hash(), network=context.network)
 
-    # Outbound message:
-    # 1. Send DemoToken to OutboundDemo script with Beneficiary datum.
-    # 2. Mint OutBoundToken and send to XPort script with CrossMsgData datum.
+    # Construct BeneficiaryData datum using CBOR tags for Plutus compatibility
+    # BeneficiaryData Tag 0: [ MsgAddress, amount ]
+    # MsgAddress Tag 0: ForeignAddress [ bytes ]
+    msg_address = cbor2.CBORTag(121, [target_address_evm.encode('utf-8')])
+    beneficiary_data = cbor2.CBORTag(121, [msg_address, int(amount)])
 
-    beneficiary_datum = {
-        0: [ # Constructor 0: BeneficiaryData
-            {0: [target_address_evm.encode('utf-8')]}, # ForeignAddress
-            int(amount)
-        ]
-    }
+    beneficiary_datum = Datum(RawPlutusData(cbor2.dumps(beneficiary_data)))
 
     tx_builder = TransactionBuilder(context)
     tx_builder.add_input_address(sender_addr)
 
     # Output to OutboundDemo script
     out_addr = Address.from_primitive(outbound_demo_addr)
-    tx_builder.add_output(TransactionOutput(out_addr, amount=2000000, datum=beneficiary_datum))
 
-    # Logic for minting OutBoundToken would go here
-    # This requires providing the script and redeemer for the minting policy
+    # Building the Value
+    val = Value(coin=2000000)
+    if demo_token_policy and demo_token_name:
+        assets = MultiAsset({
+            PolicyId.from_primitive(demo_token_policy): Asset({
+                AssetName.from_primitive(demo_token_name): int(amount)
+            })
+        })
+        val.multi_asset = assets
+
+    tx_builder.add_output(TransactionOutput(out_addr, amount=val, datum=beneficiary_datum))
+
+    # Structural placeholder for OutboundToken minting
+    if outbound_token_policy:
+        # In a full implementation, we would add minting logic here:
+        # tx_builder.mint = MultiAsset({...})
+        # tx_builder.add_minting_script(script, redeemer)
+        pass
 
     signed_tx = tx_builder.build_and_sign([payment_signing_key], change_address=sender_addr)
     context.submit_tx(signed_tx.to_cbor())

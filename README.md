@@ -27,6 +27,39 @@ This repository contains an interactive CLI tool for running cross-chain message
     - `contract_accounts.json`: Contract addresses and policy IDs.
     - `abis/`: ABI JSON files for EVM contracts.
 
+## Module Interaction Flow
+
+```mermaid
+graph TD
+    User([User]) --> IR[interactive_runner.py]
+
+    subgraph Core
+        IR --> IU[utility/interaction_utils.py]
+        IR --> PA[utility/prepare_assets.py]
+        IR --> CM[sendtransactions/cardano_msg.py]
+        IR --> EM[sendtransactions/evm_msg.py]
+    end
+
+    subgraph Configuration
+        IU -.-> CSV[testcases/*.csv]
+        PA -.-> RPC[config/rpc.json]
+        CM -.-> CA[config/contract_accounts.json]
+        EM -.-> CA
+        EM -.-> ABI[config/abis/*.json]
+    end
+
+    subgraph External
+        PA --> BF[Blockfrost API]
+        PA --> WR[Wanchain RPC]
+        CM --> BF
+        EM --> WR
+    end
+
+    IU --> IR
+    PA --> IR
+    CSV --> IU
+```
+
 ## Getting Started
 
 ### Prerequisites
@@ -46,7 +79,7 @@ This repository contains an interactive CLI tool for running cross-chain message
 
 1. Create a `.env` file in the root directory and add your Blockfrost API key:
    ```env
-   BLOCKFROST_API_KEY=your_project_id_here
+   YOUR_BLOCKFROST_PROJECT_ID=your_project_id_here
    ```
 2. Ensure `config/contract_accounts.json` contains the correct contract addresses for your target environment.
 

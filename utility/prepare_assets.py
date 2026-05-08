@@ -18,9 +18,9 @@ class PrepareAssets:
             self.rpc_config = json.load(f)
 
         self.cardano_network = Network.MAINNET if network_name == 'mainnet' else Network.TESTNET
-        self.blockfrost_project_id = os.getenv("BLOCKFROST_API_KEY")
+        self.blockfrost_project_id = os.getenv("YOUR_BLOCKFROST_PROJECT_ID")
         if not self.blockfrost_project_id:
-            raise ValueError("BLOCKFROST_API_KEY environment variable is not set")
+            raise ValueError("YOUR_BLOCKFROST_PROJECT_ID environment variable is not set")
         self.cardano_context = BlockFrostChainContext(self.blockfrost_project_id, self.cardano_network)
 
         self.evm_url = self.rpc_config['evm'][network_name]['url']
@@ -90,7 +90,7 @@ class PrepareAssets:
         print("✅ Wallets generated and saved to current_cardano_wallets.json and current_evm_wallets.json")
 
     def check_all_cardano_balances(self, case_file, wallets_info):
-        _, main_wallet, batch_wallets, _ = wallets_info
+        _, main_wallet, batch_wallets = wallets_info
         print(f"\n--- 💰 Cardano Balances ({self.network_name}) ---")
 
         def get_bal(addr):
@@ -109,7 +109,7 @@ class PrepareAssets:
             print(f"Batch {i+1}: {w['address']} | Balance: {lovelace/1000000} ADA")
 
     def check_all_evm_balances(self, case_file, wallets_info):
-        _, main_wallet, batch_wallets, _ = wallets_info
+        _, main_wallet, batch_wallets = wallets_info
         print(f"\n--- 💰 EVM Balances ({self.network_name}) ---")
 
         main_bal = self.w3.eth.get_balance(main_wallet['address'])
@@ -120,7 +120,7 @@ class PrepareAssets:
             print(f"Batch {i+1}: {w['address']} | Balance: {self.w3.from_wei(bal, 'ether')} WAN")
 
     def distribute_cardano_funds(self, case_file, wallets_info):
-        _, main_wallet, batch_wallets, _ = wallets_info
+        _, main_wallet, batch_wallets = wallets_info
         print(f"💸 Distributing ADA from {main_wallet['address'][:10]} to batch wallets...")
 
         main_sk = PaymentSigningKey.from_primitive(bytes.fromhex(main_wallet['private_key']))
@@ -137,14 +137,14 @@ class PrepareAssets:
         print(f"✅ Distribution TX submitted: {signed_tx.id}")
 
     def distribute_evm_funds(self, case_file, wallets_info):
-        _, main_wallet, batch_wallets, _ = wallets_info
+        _, main_wallet, batch_wallets = wallets_info
         print(f"💸 Distributing WAN from {main_wallet['address'][:10]} to batch wallets...")
 
         main_pk = main_wallet['private_key']
         main_addr = main_wallet['address']
 
+        nonce = self.w3.eth.get_transaction_count(main_addr)
         for w in batch_wallets:
-            nonce = self.w3.eth.get_transaction_count(main_addr)
             tx = {
                 'nonce': nonce,
                 'to': w['address'],
@@ -156,3 +156,4 @@ class PrepareAssets:
             signed_tx = self.w3.eth.account.sign_transaction(tx, main_pk)
             tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
             print(f"  Sent to {w['address'][:10]}, TX Hash: {tx_hash.hex()}")
+            nonce += 1
