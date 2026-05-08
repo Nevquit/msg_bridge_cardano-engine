@@ -1,0 +1,7 @@
+pycardano
+web3
+blockfrost-python
+mnemonic
+pandas
+cbor2
+eth-account
