@@ -3,6 +3,7 @@ web3
 blockfrost-python
 mnemonic
 pandas
-cbor2
+cbor2==5.6.5
+cbor2pure==5.7.2
 eth-account
 python-dotenv

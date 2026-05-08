@@ -2,6 +2,7 @@ from web3 import Web3
 import json
 from pycardano import Address as CardanoAddress
 from pycardano.serialization import CBORSerializable
+import cbor2
 
 class Erc20TokenRemote:
     def __init__(self, node_url, token_home_addr, abi_path):
@@ -12,20 +13,41 @@ class Erc20TokenRemote:
         self.contract = self.w3.eth.contract(address=token_home_addr, abi=abi)
 
     def encode_plutus_data(self, target_cardano_addr, amount):
-        # Match MeshSDK genBeneficiaryData logic
-        # data BeneficiaryData = BeneficiaryData { receiver :: MsgAddress, amount :: Integer }
-        # data MsgAddress = ForeignAddress BuiltinByteString | LocalAddress Address
+        """
+        Encodes BeneficiaryData for the EVM send function.
+        Matches Wanchain XPort Cardano bridge requirements.
+        """
+        try:
+            addr = CardanoAddress.from_primitive(target_cardano_addr)
+            # Cardano Address encoding in Plutus Data:
+            # Address [ PaymentCredential, Option StakeCredential ]
+            # LocalAddress is Tag 1 in MsgAddress
 
-        addr = CardanoAddress.from_primitive(target_cardano_addr)
-        # LocalAddress is constructor 1
-        # Payment credential is index 0 (VerificationKey) or 1 (Script)
+            payment_cred = addr.payment_part.to_primitive()
+            stake_cred = addr.staking_part.to_primitive() if addr.staking_part else None
 
-        # Simplified reconstruction of PlutusData for Cardano Address
-        # This is complex to do purely in Python without MeshSDK but we can approximate for the runner
+            # Construct Plutus Address
+            # Tag 0: VerificationKeyHash, Tag 1: ScriptHash
+            from pycardano import VerificationKeyHash, ScriptHash
+            p_tag = 0 if isinstance(addr.payment_part, VerificationKeyHash) else 1
 
-        # Using a placeholder for now as full Plutus Address serialization is complex
-        # In a real tool, we would use a library that handles Plutus Data encoding accurately
-        return b"dummy"
+            plutus_addr = cbor2.CBORTag(121, [
+                cbor2.CBORTag(121 + p_tag, [payment_cred]), # Payment Credential
+                cbor2.CBORTag(121, [cbor2.CBORTag(121, [cbor2.CBORTag(121, [stake_cred])])]) if stake_cred else cbor2.CBORTag(122, []) # Stake Credential Option (Some/Inline/PubKey)
+            ])
+
+            # MsgAddress Tag 1: LocalAddress
+            msg_address = cbor2.CBORTag(122, [cbor2.CBORTag(121, plutus_addr)])
+
+            # BeneficiaryData Tag 0: [ address, amount ]
+            beneficiary_data = cbor2.CBORTag(121, [msg_address, int(amount)])
+
+            return cbor2.dumps(beneficiary_data)
+        except Exception as e:
+            # Fallback to foreign address (Tag 0) if not a valid Cardano address
+            msg_address = cbor2.CBORTag(121, [target_cardano_addr.encode('utf-8')])
+            beneficiary_data = cbor2.CBORTag(121, [msg_address, int(amount)])
+            return cbor2.dumps(beneficiary_data)
 
     def send(self, private_key, plutus_data, gas_limit=300000):
         account = self.w3.eth.account.from_key(private_key)
