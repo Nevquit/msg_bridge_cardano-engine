@@ -1,13 +1,16 @@
 {
     "preprod": {
         "cardano": {
-            "outbound_demo": "addr_test1...",
-            "xport": "addr_test1...",
-            "outbound_token_policy": "..."
+            "outbound_demo": "addr_test1wzuh2amrxkr23ft08wuasdxnu9czcqshswzx076ztf5h9hgm2cgcz",
+            "inbound_demo": "addr_test1wp358tkwhux3d2ggus9xkz92mncv6qe3zanfepn6q6tyevg4cdrup",
+            "xport": "addr_test1wp06e00266a0804446006600400240024466e0000520020",
+            "outbound_token_policy": "2f5cbb5da5f1b6df0ce7263707c75e9d7bc024945b97c6117a7daa0c",
+            "inbound_token_policy": "f9b4431f11b4029a9a020496e5bf851b2bf13c4cb37a42a4094db743"
         },
         "evm": {
-            "token_home": "0x...",
-            "gx_token": "0x..."
+            "token_home": "0xd6Ed4F1F50Cae0c5c7F514F3D0B1220c4a78F71d",
+            "gx_token": "0x0B40EF8f0bA69C39f8dD7Eeab073275c72593aa2",
+            "wmb_gateway": "0xDDddd58428706FEdD013b3A761c6E40723a7911d"
         }
     }
 }
