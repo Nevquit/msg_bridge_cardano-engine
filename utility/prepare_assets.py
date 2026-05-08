@@ -18,7 +18,9 @@ class PrepareAssets:
             self.rpc_config = json.load(f)
 
         self.cardano_network = Network.MAINNET if network_name == 'mainnet' else Network.TESTNET
-        self.blockfrost_project_id = self.rpc_config['cardano'][network_name]['project_id']
+        self.blockfrost_project_id = os.getenv("BLOCKFROST_API_KEY")
+        if not self.blockfrost_project_id:
+            raise ValueError("BLOCKFROST_API_KEY environment variable is not set")
         self.cardano_context = BlockFrostChainContext(self.blockfrost_project_id, self.cardano_network)
 
         self.evm_url = self.rpc_config['evm'][network_name]['url']

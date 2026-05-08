@@ -5,3 +5,4 @@ mnemonic
 pandas
 cbor2
 eth-account
+python-dotenv
