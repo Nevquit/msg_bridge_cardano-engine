@@ -1,0 +1,13 @@
+{
+    "preprod": {
+        "cardano": {
+            "outbound_demo": "addr_test1...",
+            "xport": "addr_test1...",
+            "outbound_token_policy": "..."
+        },
+        "evm": {
+            "token_home": "0x...",
+            "gx_token": "0x..."
+        }
+    }
+}

@@ -1,0 +1,12 @@
+{
+    "cardano": {
+        "preprod": {
+            "project_id": "YOUR_BLOCKFROST_PROJECT_ID"
+        }
+    },
+    "evm": {
+        "preprod": {
+            "url": "https://rpc-testnet.wanchain.org"
+        }
+    }
+}
