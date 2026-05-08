@@ -2,6 +2,9 @@ import sys
 import os
 import time
 import json
+from dotenv import load_dotenv
+
+load_dotenv()
 import pandas as pd
 from pycardano import BlockFrostChainContext, Network
 

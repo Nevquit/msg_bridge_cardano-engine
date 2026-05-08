@@ -1,12 +1,15 @@
 {
     "cardano": {
         "preprod": {
-            "project_id": "YOUR_BLOCKFROST_PROJECT_ID"
+            "network": "preprod"
+        },
+        "mainnet": {
+            "network": "mainnet"
         }
     },
     "evm": {
         "preprod": {
-            "url": "https://rpc-testnet.wanchain.org"
+            "url": "https://gwan-ssl.wandevs.org:46891/"
         }
     }
 }
