@@ -1,6 +1,15 @@
 import sys
 import os
 import time
+import warnings
+
+# Suppress Deprecation Warnings from dependencies (e.g. cryptography on older Python versions)
+warnings.filterwarnings("ignore", category=UserWarning)
+try:
+    from cryptography.utils import CryptographyDeprecationWarning
+    warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+except ImportError:
+    pass
 import json
 from dotenv import load_dotenv
 
@@ -58,11 +67,11 @@ def main_menu(direction, case_file, network):
                 continue
             if is_cardano:
                 info = get_cardano_wallet_info()
-                if info: asset_preparer.check_all_cardano_balances(case_file, info[:3])
+                if info: asset_preparer.check_all_cardano_balances(info[:3])
                 else: print("❌ No Cardano wallets found.")
             else:
                 info = get_evm_wallet_info()
-                if info: asset_preparer.check_all_evm_balances(case_file, info[:3])
+                if info: asset_preparer.check_all_evm_balances(info[:3])
                 else: print("❌ No EVM wallets found.")
 
         elif choice == '3':
