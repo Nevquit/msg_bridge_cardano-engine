@@ -117,7 +117,8 @@ class PrepareAssets:
         with open(os.path.join("wallets", f"{evm_wallet_data['wallet_name']}.json"), "w") as f:
             json.dump(evm_wallet_data, f, indent=4)
 
-        print(f"✅ Wallets generated and saved to current_cardano_wallets.json, current_evm_wallets.json and wallets/ directory")
+        print(f"✅ Generated {num_batch} batch wallets from mnemonic.")
+        print(f"✅ Saved to current_cardano_wallets.json, current_evm_wallets.json and wallets/ directory")
 
     def check_all_cardano_balances(self, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
