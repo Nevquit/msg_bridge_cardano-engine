@@ -89,7 +89,7 @@ class PrepareAssets:
 
         print("✅ Wallets generated and saved to current_cardano_wallets.json and current_evm_wallets.json")
 
-    def check_all_cardano_balances(self, case_file, wallets_info):
+    def check_all_cardano_balances(self, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
         print(f"\n--- 💰 Cardano Balances ({self.network_name}) ---")
 
@@ -108,7 +108,7 @@ class PrepareAssets:
             lovelace = sum([utxo.output.amount.coin for utxo in utxos])
             print(f"Batch {i+1}: {w['address']} | Balance: {lovelace/1000000} ADA")
 
-    def check_all_evm_balances(self, case_file, wallets_info):
+    def check_all_evm_balances(self, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
         print(f"\n--- 💰 EVM Balances ({self.network_name}) ---")
 

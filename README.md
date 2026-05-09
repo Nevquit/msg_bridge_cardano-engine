@@ -113,7 +113,7 @@ sequenceDiagram
 
 ### Prerequisites
 
-- Python 3.10+
+- **Python 3.10+** (Recommended). Support for older versions may trigger deprecation warnings from dependencies.
 - A [Blockfrost](https://blockfrost.io/) API Key for Cardano access.
 
 ### Installation
