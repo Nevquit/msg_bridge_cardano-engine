@@ -5,7 +5,8 @@ from mnemonic import Mnemonic
 from pycardano import (
     Address, Network, PaymentKeyPair, StakeKeyPair,
     BlockFrostChainContext, TransactionBuilder, TransactionOutput,
-    HDWallet, PaymentSigningKey, StakeSigningKey, PaymentVerificationKey, StakeVerificationKey
+    HDWallet, PaymentSigningKey, StakeSigningKey, PaymentVerificationKey, StakeVerificationKey,
+    PaymentExtendedSigningKey, StakeExtendedSigningKey
 )
 from web3 import Web3
 from eth_account import Account
@@ -58,8 +59,8 @@ class PrepareAssets:
             payment_hd = hd_wallet.derive_from_path(f"m/1852'/1815'/0'/0/{index}")
             stake_hd = hd_wallet.derive_from_path(f"m/1852'/1815'/0'/2/0")
 
-            payment_sk = PaymentSigningKey.from_primitive(payment_hd.xprivate_key)
-            stake_sk = StakeSigningKey.from_primitive(stake_hd.xprivate_key)
+            payment_sk = PaymentExtendedSigningKey.from_primitive(payment_hd.xprivate_key)
+            stake_sk = StakeExtendedSigningKey.from_primitive(stake_hd.xprivate_key)
 
             payment_vk = payment_sk.to_verification_key()
             stake_vk = stake_sk.to_verification_key()
@@ -152,7 +153,11 @@ class PrepareAssets:
         _, main_wallet, batch_wallets = wallets_info
         print(f"💸 Distributing ADA from {main_wallet['address'][:10]} to batch wallets...")
 
-        main_sk = PaymentSigningKey.from_primitive(bytes.fromhex(main_wallet['private_key']))
+        sk_bytes = bytes.fromhex(main_wallet['private_key'])
+        if len(sk_bytes) == 64:
+            main_sk = PaymentExtendedSigningKey.from_primitive(sk_bytes)
+        else:
+            main_sk = PaymentSigningKey.from_primitive(sk_bytes)
         main_addr = Address.from_primitive(main_wallet['address'])
 
         tx_builder = TransactionBuilder(self.cardano_context)
@@ -164,6 +169,9 @@ class PrepareAssets:
         signed_tx = tx_builder.build_and_sign([main_sk], change_address=main_addr)
         self.cardano_context.submit_tx(signed_tx.to_cbor())
         print(f"✅ Distribution TX submitted: {signed_tx.id}")
+        print("⏳ Waiting for confirmation (Cardano can take a minute)...")
+        # In a real tool we might wait for the TX to be seen in a block,
+        # but for this script we'll just inform the user.
 
     def distribute_evm_funds(self, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
@@ -185,4 +193,6 @@ class PrepareAssets:
             signed_tx = self.w3.eth.account.sign_transaction(tx, main_pk)
             tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
             print(f"  Sent to {w['address'][:10]}, TX Hash: {tx_hash.hex()}")
+            print("    ⏳ Waiting for confirmation...")
+            self.w3.eth.wait_for_transaction_receipt(tx_hash)
             nonce += 1

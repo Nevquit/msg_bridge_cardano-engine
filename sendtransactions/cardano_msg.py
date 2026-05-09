@@ -3,7 +3,7 @@ from pycardano import (
     Address, TransactionBuilder, TransactionOutput,
     BlockFrostChainContext, Network, PaymentSigningKey,
     Value, MultiAsset, AssetName, Asset, PolicyId,
-    PlutusV2Script, Redeemer
+    PlutusV2Script, Redeemer, PaymentExtendedSigningKey
 )
 from pycardano import PlutusData, Datum, RawPlutusData
 import cbor2
@@ -16,7 +16,11 @@ def cardano_to_evm_msg(context, sender_sk_hex, target_address_evm, amount, outbo
     2. (Optional/Advanced) Mint OutBoundToken.
     """
     # Load signer
-    payment_signing_key = PaymentSigningKey.from_primitive(bytes.fromhex(sender_sk_hex))
+    sk_bytes = bytes.fromhex(sender_sk_hex)
+    if len(sk_bytes) == 64:
+        payment_signing_key = PaymentExtendedSigningKey.from_primitive(sk_bytes)
+    else:
+        payment_signing_key = PaymentSigningKey.from_primitive(sk_bytes)
     sender_addr = Address(payment_signing_key.to_verification_key().hash(), network=context.network)
 
     # Construct BeneficiaryData datum using CBOR tags for Plutus compatibility
