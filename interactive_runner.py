@@ -25,6 +25,22 @@ from utility.interaction_utils import (
 from sendtransactions.cardano_msg import cardano_to_evm_msg
 from sendtransactions.evm_msg import Erc20TokenRemote
 
+def check_wallet_coverage(case_file, direction):
+    cases = pd.read_csv(os.path.join("testcases", case_file))
+    is_cardano = direction == "cardano_to_evm"
+    res = get_cardano_wallet_info() if is_cardano else get_evm_wallet_info()
+
+    if not res:
+        print("❌ Error: Wallets not created yet. Please use option 1 first.")
+        return False
+
+    batch_wallets = res[2]
+    if len(batch_wallets) < len(cases):
+        print(f"❌ Error: Need {len(cases)} batch addresses, but have {len(batch_wallets)}.")
+        print("💡 Hint: Run option 1 (Create Wallets) to update the wallet set for this case.")
+        return False
+    return True
+
 def main_menu(direction, case_file, network):
     print(f"\n🚀 XPort Bridge Runner | Direction: {direction} | Case: {case_file} | Net: {network}")
     try:
@@ -66,34 +82,35 @@ def main_menu(direction, case_file, network):
             if not asset_preparer:
                 print("❌ Asset preparer not initialized.")
                 continue
-            if is_cardano:
-                info = get_cardano_wallet_info()
-                if info: asset_preparer.check_all_cardano_balances(info[:3])
-                else: print("❌ No Cardano wallets found.")
-            else:
-                info = get_evm_wallet_info()
-                if info: asset_preparer.check_all_evm_balances(info[:3])
-                else: print("❌ No EVM wallets found.")
+            if check_wallet_coverage(case_file, direction):
+                if is_cardano:
+                    info = get_cardano_wallet_info()
+                    asset_preparer.check_all_cardano_balances(info[:3])
+                else:
+                    info = get_evm_wallet_info()
+                    asset_preparer.check_all_evm_balances(info[:3])
 
         elif choice == '3':
             if not asset_preparer:
                 print("❌ Asset preparer not initialized.")
                 continue
-            if is_cardano:
-                info = get_cardano_wallet_info()
-                if info: asset_preparer.distribute_cardano_funds(info[:3])
-            else:
-                info = get_evm_wallet_info()
-                if info: asset_preparer.distribute_evm_funds(info[:3])
+            if check_wallet_coverage(case_file, direction):
+                if is_cardano:
+                    info = get_cardano_wallet_info()
+                    asset_preparer.distribute_cardano_funds(info[:3])
+                else:
+                    info = get_evm_wallet_info()
+                    asset_preparer.distribute_evm_funds(info[:3])
 
         elif choice == '4':
             if not asset_preparer:
                 print("❌ Asset preparer not initialized.")
                 continue
-            if is_cardano:
-                run_cardano_to_evm(case_file, network, asset_preparer.cardano_context)
-            else:
-                run_evm_to_cardano(case_file, network)
+            if check_wallet_coverage(case_file, direction):
+                if is_cardano:
+                    run_cardano_to_evm(case_file, network, asset_preparer.cardano_context)
+                else:
+                    run_evm_to_cardano(case_file, network)
 
         elif choice == '5': return
         elif choice == '6': sys.exit(0)
