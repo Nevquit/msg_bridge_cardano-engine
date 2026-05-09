@@ -26,7 +26,12 @@ def cardano_to_evm_msg(context, sender_sk_hex, target_address_evm, amount, outbo
     # Construct BeneficiaryData datum using CBOR tags for Plutus compatibility
     # BeneficiaryData Tag 0: [ MsgAddress, amount ]
     # MsgAddress Tag 0: ForeignAddress [ bytes ]
-    msg_address = cbor2.CBORTag(121, [target_address_evm.encode('utf-8')])
+    try:
+        addr_bytes = bytes.fromhex(target_address_evm.replace('0x', ''))
+    except:
+        addr_bytes = target_address_evm.encode('utf-8')
+
+    msg_address = cbor2.CBORTag(121, [addr_bytes])
     beneficiary_data = cbor2.CBORTag(121, [msg_address, int(amount)])
 
     beneficiary_datum = Datum(RawPlutusData(cbor2.dumps(beneficiary_data)))
