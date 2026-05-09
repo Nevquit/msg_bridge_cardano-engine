@@ -46,8 +46,8 @@ def main_menu(direction, case_file, network):
     try:
         asset_preparer = PrepareAssets(network)
     except Exception as e:
-        print(f"⚠️ Warning: Could not initialize backend (likely missing API keys): {e}")
-        asset_preparer = None
+        print(f"❌ Error: Could not initialize backend (likely missing API keys or no internet): {e}")
+        sys.exit(1)
 
     try:
         cases_df = pd.read_csv(os.path.join("testcases", case_file))
@@ -75,13 +75,9 @@ def main_menu(direction, case_file, network):
         if choice == '1':
             mnemonic = input("👉 Enter mnemonic (24 words) or press Enter to generate: ").strip()
             if not mnemonic: mnemonic = None
-            if asset_preparer: asset_preparer.generate_wallets(mnemonic)
-            else: print("❌ Asset preparer not initialized.")
+            asset_preparer.generate_wallets(mnemonic)
 
         elif choice == '2':
-            if not asset_preparer:
-                print("❌ Asset preparer not initialized.")
-                continue
             if check_wallet_coverage(case_file, direction):
                 if is_cardano:
                     info = get_cardano_wallet_info()
@@ -91,9 +87,6 @@ def main_menu(direction, case_file, network):
                     asset_preparer.check_all_evm_balances(info[:3])
 
         elif choice == '3':
-            if not asset_preparer:
-                print("❌ Asset preparer not initialized.")
-                continue
             if check_wallet_coverage(case_file, direction):
                 if is_cardano:
                     info = get_cardano_wallet_info()
@@ -103,9 +96,6 @@ def main_menu(direction, case_file, network):
                     asset_preparer.distribute_evm_funds(info[:3])
 
         elif choice == '4':
-            if not asset_preparer:
-                print("❌ Asset preparer not initialized.")
-                continue
             if check_wallet_coverage(case_file, direction):
                 if is_cardano:
                     run_cardano_to_evm(case_file, network, asset_preparer.cardano_context)
