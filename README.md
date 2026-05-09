@@ -63,6 +63,22 @@ graph TD
 ## XPort Workflows
 
 ### 1. From EVM to Cardano (Inbound)
+
+```mermaid
+sequenceDiagram
+    participant User as EVM User/DApp
+    participant TH as TokenHome (EVM)
+    participant Agent as Relay Agent (msg-agent)
+    participant C_DApp as Cardano DApp Script
+
+    User->>TH: call send(PlutusData)
+    TH->>TH: emit MessageSent event
+    Agent->>TH: observe MessageSent
+    Agent->>Agent: collect MPC Signatures
+    Agent->>C_DApp: submit Inbound Tx (mint InboundToken)
+    C_DApp->>C_DApp: validate & execute logic
+```
+
 1. **Initiation**: A user or DApp on EVM calls the `send()` function on the `TokenHome` contract (which interfaces with `WmbGateway`).
 2. **Observation**: The `msg-agent` (Relay Agent) monitors the EVM chain for `MessageSent` events.
 3. **Relay**: The agent collects MPC signatures and builds an Inbound transaction on Cardano.
@@ -70,6 +86,23 @@ graph TD
 5. **Consumption**: The Cardano DApp script validates the `InboundToken` and executes the intended logic (e.g., unlocking assets).
 
 ### 2. From Cardano to EVM (Outbound)
+
+```mermaid
+sequenceDiagram
+    participant User as Cardano User
+    participant C_Demo as OutboundDemo Script
+    participant Agent as Relay Agent (msg-agent)
+    participant GW as WmbGateway (EVM)
+    participant E_DApp as Target EVM Contract
+
+    User->>C_Demo: send assets + datum
+    User->>C_Demo: mint OutboundToken to XPort
+    Agent->>C_Demo: observe OutboundToken UTxO
+    Agent->>Agent: generate Proof of Cardano Tx
+    Agent->>GW: call receiveMessageNonEvm(Proof)
+    GW->>E_DApp: trigger wmbReceive()
+```
+
 1. **Initiation**: A Cardano DApp script initiates a message by sending assets to the `OutboundDemo` script.
 2. **Token Minting**: The transaction mints an `OutboundToken` and sends it to the `XPort` contract with a `CrossMsgData` datum.
 3. **Observation**: The `msg-agent` monitors the Cardano `XPort` contract address for new UTxOs containing `OutboundTokens`.
