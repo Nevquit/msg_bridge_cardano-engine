@@ -57,7 +57,8 @@ def main_menu(direction, case_file, network):
         choice = input("👉 Choice: ").strip()
 
         if choice == '1':
-            mnemonic = input("👉 Enter mnemonic (24 words): ").strip()
+            mnemonic = input("👉 Enter mnemonic (24 words) or press Enter to generate: ").strip()
+            if not mnemonic: mnemonic = None
             if asset_preparer: asset_preparer.generate_wallets(mnemonic)
             else: print("❌ Asset preparer not initialized.")
 
@@ -80,10 +81,10 @@ def main_menu(direction, case_file, network):
                 continue
             if is_cardano:
                 info = get_cardano_wallet_info()
-                if info: asset_preparer.distribute_cardano_funds(case_file, info[:3])
+                if info: asset_preparer.distribute_cardano_funds(info[:3])
             else:
                 info = get_evm_wallet_info()
-                if info: asset_preparer.distribute_evm_funds(case_file, info[:3])
+                if info: asset_preparer.distribute_evm_funds(info[:3])
 
         elif choice == '4':
             if not asset_preparer:
