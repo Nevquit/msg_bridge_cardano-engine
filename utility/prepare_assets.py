@@ -49,7 +49,6 @@ class PrepareAssets:
 
         cardano_count = self._get_max_cases("cardano_to_evm")
         evm_count = self._get_max_cases("evm_to_cardano")
-        num_batch = max(cardano_count, evm_count, 5)
 
         # Generate Cardano Wallets
         hd_wallet = HDWallet.from_mnemonic(mnemonic_phrase)
@@ -72,7 +71,7 @@ class PrepareAssets:
             }
 
         main_cardano = derive_cardano(0)
-        batch_cardano = [derive_cardano(i) for i in range(1, num_batch + 1)]
+        batch_cardano = [derive_cardano(i) for i in range(1, cardano_count + 1)]
 
         cardano_wallet_data = {
             "wallet_name": f"cardano_key_set_{wallet_set_id}",
@@ -93,7 +92,7 @@ class PrepareAssets:
         }
 
         batch_evm = []
-        for i in range(1, num_batch + 1):
+        for i in range(1, evm_count + 1):
             acc = Account.from_mnemonic(mnemonic_phrase, account_path=f"m/44'/60'/0'/0/{i}")
             batch_evm.append({
                 "address": acc.address,
@@ -117,7 +116,7 @@ class PrepareAssets:
         with open(os.path.join("wallets", f"{evm_wallet_data['wallet_name']}.json"), "w") as f:
             json.dump(evm_wallet_data, f, indent=4)
 
-        print(f"✅ Generated {num_batch} batch wallets from mnemonic.")
+        print(f"✅ Generated batch wallets: Cardano={cardano_count}, EVM={evm_count}")
         print(f"✅ Saved to current_cardano_wallets.json, current_evm_wallets.json and wallets/ directory")
 
     def check_all_cardano_balances(self, wallets_info):
