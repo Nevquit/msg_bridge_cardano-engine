@@ -81,10 +81,10 @@ def main_menu(direction, case_file, network):
             if check_wallet_coverage(case_file, direction):
                 if is_cardano:
                     info = get_cardano_wallet_info()
-                    asset_preparer.check_all_cardano_balances(info[:3])
+                    asset_preparer.check_all_cardano_balances(case_file, info[:3])
                 else:
                     info = get_evm_wallet_info()
-                    asset_preparer.check_all_evm_balances(info[:3])
+                    asset_preparer.check_all_evm_balances(case_file, info[:3])
 
         elif choice == '3':
             if check_wallet_coverage(case_file, direction):
