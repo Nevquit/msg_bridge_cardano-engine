@@ -123,31 +123,55 @@ class PrepareAssets:
         _, main_wallet, batch_wallets = wallets_info
         print(f"\n--- 💰 Cardano Balances ({self.network_name}) ---")
 
-        def get_bal(addr):
-            try:
-                return self.cardano_context.utxos(addr)
-            except:
-                return []
+        with open('config/contract_accounts.json', 'r') as f:
+            contracts = json.load(f)[self.network_name]['cardano']
 
-        main_utxos = get_bal(main_wallet['address'])
-        main_lovelace = sum([utxo.output.amount.coin for utxo in main_utxos])
-        print(f"Main Wallet: {main_wallet['address']} | Balance: {main_lovelace/1000000} ADA")
+        policy = contracts.get('outbound_token_policy', '') # Use outbound token policy as a reference or a specific DemoToken policy
+
+        def get_info(addr):
+            try:
+                utxos = self.cardano_context.utxos(addr)
+                lovelace = sum([utxo.output.amount.coin for utxo in utxos])
+                tokens = 0
+                for utxo in utxos:
+                    if utxo.output.amount.multi_asset:
+                        for p, assets in utxo.output.amount.multi_asset.items():
+                            if str(p) == policy:
+                                tokens += sum([qty for name, qty in assets.items()])
+                return lovelace, tokens
+            except:
+                return 0, 0
+
+        main_ada, main_tk = get_info(main_wallet['address'])
+        print(f"Main Wallet: {main_wallet['address'][:15]}... | ADA: {main_ada/1000000:<10.2f} | Token: {main_tk}")
 
         for i, w in enumerate(batch_wallets):
-            utxos = get_bal(w['address'])
-            lovelace = sum([utxo.output.amount.coin for utxo in utxos])
-            print(f"Batch {i+1}: {w['address']} | Balance: {lovelace/1000000} ADA")
+            ada, tk = get_info(w['address'])
+            print(f"Batch {i+1}: {w['address'][:15]}... | ADA: {ada/1000000:<10.2f} | Token: {tk}")
 
     def check_all_evm_balances(self, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
         print(f"\n--- 💰 EVM Balances ({self.network_name}) ---")
 
-        main_bal = self.w3.eth.get_balance(main_wallet['address'])
-        print(f"Main Wallet: {main_wallet['address']} | Balance: {self.w3.from_wei(main_bal, 'ether')} WAN")
+        with open('config/contract_accounts.json', 'r') as f:
+            contracts = json.load(f)[self.network_name]['evm']
+
+        token_addr = contracts.get('gx_token', '')
+        erc20_abi = [{"constant": True, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function"}]
+        token_contract = self.w3.eth.contract(address=self.w3.to_checksum_address(token_addr), abi=erc20_abi) if token_addr else None
+
+        def get_info(addr):
+            c_addr = self.w3.to_checksum_address(addr)
+            wan = self.w3.eth.get_balance(c_addr)
+            tk = token_contract.functions.balanceOf(c_addr).call() if token_contract else 0
+            return wan, tk
+
+        main_wan, main_tk = get_info(main_wallet['address'])
+        print(f"Main Wallet: {main_wallet['address'][:15]}... | WAN: {self.w3.from_wei(main_wan, 'ether'):<10.4f} | Token: {main_tk}")
 
         for i, w in enumerate(batch_wallets):
-            bal = self.w3.eth.get_balance(w['address'])
-            print(f"Batch {i+1}: {w['address']} | Balance: {self.w3.from_wei(bal, 'ether')} WAN")
+            wan, tk = get_info(w['address'])
+            print(f"Batch {i+1}: {w['address'][:15]}... | WAN: {self.w3.from_wei(wan, 'ether'):<10.4f} | Token: {tk}")
 
     def distribute_cardano_funds(self, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
