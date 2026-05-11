@@ -119,14 +119,18 @@ class PrepareAssets:
         print(f"✅ Generated batch wallets: Cardano={cardano_count}, EVM={evm_count}")
         print(f"✅ Saved to current_cardano_wallets.json, current_evm_wallets.json and wallets/ directory")
 
-    def check_all_cardano_balances(self, wallets_info):
+    def check_all_cardano_balances(self, case_file, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
-        print(f"\n--- 💰 Cardano Balances ({self.network_name}) ---")
+        print(f"\n--- 💰 Cardano Balance Diagnostics ({self.network_name}) ---")
+
+        cases = pd.read_csv(os.path.join("testcases", case_file)).to_dict('records')
+        total_token_needed = sum([int(c['amount_raw']) for c in cases])
+        total_ada_needed = (len(cases) * 2) + 5 # 2 ADA per case + 5 ADA buffer
 
         with open('config/contract_accounts.json', 'r') as f:
             contracts = json.load(f)[self.network_name]['cardano']
 
-        policy = contracts.get('outbound_token_policy', '') # Use outbound token policy as a reference or a specific DemoToken policy
+        policy = contracts.get('outbound_token_policy', '')
 
         def get_info(addr):
             try:
@@ -143,15 +147,27 @@ class PrepareAssets:
                 return 0, 0
 
         main_ada, main_tk = get_info(main_wallet['address'])
-        print(f"Main Wallet: {main_wallet['address'][:15]}... | ADA: {main_ada/1000000:<10.2f} | Token: {main_tk}")
+        print(f"MAIN WALLET: {main_wallet['address']}")
+        print(f"  ADA: {main_ada/1000000:.2f} (Need: {total_ada_needed:.2f}) {'✅' if main_ada/1000000 >= total_ada_needed else '❌'}")
+        print(f"  Token: {main_tk} (Need: {total_token_needed}) {'✅' if main_tk >= total_token_needed else '❌'}")
 
+        print("-" * 50)
+        print(f"{'BATCH':<8} | {'ADA (Bal/Need)':<20} | {'TOKEN (Bal/Need)':<20}")
+        print("-" * 50)
         for i, w in enumerate(batch_wallets):
+            if i >= len(cases): break
             ada, tk = get_info(w['address'])
-            print(f"Batch {i+1}: {w['address'][:15]}... | ADA: {ada/1000000:<10.2f} | Token: {tk}")
+            need_ada = 2.0
+            need_tk = int(cases[i]['amount_raw'])
+            print(f"{i+1:<8} | {ada/1000000:0.2f}/{need_ada:0.2f} | {tk}/{need_tk}")
 
-    def check_all_evm_balances(self, wallets_info):
+    def check_all_evm_balances(self, case_file, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
-        print(f"\n--- 💰 EVM Balances ({self.network_name}) ---")
+        print(f"\n--- 💰 EVM Balance Diagnostics ({self.network_name}) ---")
+
+        cases = pd.read_csv(os.path.join("testcases", case_file)).to_dict('records')
+        total_token_needed = sum([int(c['amount_raw']) for c in cases])
+        total_wan_needed = (len(cases) * 0.1) + 0.5 # 0.1 WAN per case + 0.5 WAN buffer
 
         with open('config/contract_accounts.json', 'r') as f:
             contracts = json.load(f)[self.network_name]['evm']
@@ -167,11 +183,21 @@ class PrepareAssets:
             return wan, tk
 
         main_wan, main_tk = get_info(main_wallet['address'])
-        print(f"Main Wallet: {main_wallet['address'][:15]}... | WAN: {self.w3.from_wei(main_wan, 'ether'):<10.4f} | Token: {main_tk}")
+        main_wan_f = float(self.w3.from_wei(main_wan, 'ether'))
+        print(f"MAIN WALLET: {main_wallet['address']}")
+        print(f"  WAN: {main_wan_f:.4f} (Need: {total_wan_needed:.4f}) {'✅' if main_wan_f >= total_wan_needed else '❌'}")
+        print(f"  Token: {main_tk} (Need: {total_token_needed}) {'✅' if main_tk >= total_token_needed else '❌'}")
 
+        print("-" * 50)
+        print(f"{'BATCH':<8} | {'WAN (Bal/Need)':<20} | {'TOKEN (Bal/Need)':<20}")
+        print("-" * 50)
         for i, w in enumerate(batch_wallets):
+            if i >= len(cases): break
             wan, tk = get_info(w['address'])
-            print(f"Batch {i+1}: {w['address'][:15]}... | WAN: {self.w3.from_wei(wan, 'ether'):<10.4f} | Token: {tk}")
+            wan_f = float(self.w3.from_wei(wan, 'ether'))
+            need_wan = 0.1
+            need_tk = int(cases[i]['amount_raw'])
+            print(f"{i+1:<8} | {wan_f:0.4f}/{need_wan:0.4f} | {tk}/{need_tk}")
 
     def distribute_cardano_funds(self, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
