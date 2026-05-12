@@ -24,14 +24,20 @@ def cardano_to_evm_msg(context, sender_sk_hex, target_address_evm, amount, outbo
     sender_addr = Address(payment_signing_key.to_verification_key().hash(), network=context.network)
 
     # Construct BeneficiaryData datum using CBOR tags for Plutus compatibility
-    # BeneficiaryData Tag 0: [ MsgAddress, amount ]
-    # MsgAddress Tag 0: ForeignAddress [ bytes ]
+    # Following Wanchain XPort protocol nesting requirements:
+    # fields -> msgAddress -> msgAddressFields -> receiver -> address_bytes
+
     try:
         addr_bytes = bytes.fromhex(target_address_evm.replace('0x', ''))
     except:
         addr_bytes = target_address_evm.encode('utf-8')
 
-    msg_address = cbor2.CBORTag(121, [addr_bytes])
+    # MsgAddress Tag 0: ForeignAddress [ bytes ]
+    # Nesting to match DemoMsgCodec: Tag 121 [ [ bytes ] ]
+    receiver = cbor2.CBORTag(121, [addr_bytes])
+    msg_address_fields = [receiver]
+    msg_address = cbor2.CBORTag(121, [msg_address_fields])
+
     beneficiary_data = cbor2.CBORTag(121, [msg_address, int(amount)])
 
     beneficiary_datum = Datum(RawPlutusData(cbor2.dumps(beneficiary_data)))
