@@ -6,7 +6,7 @@ from pycardano import (
     Address, Network, PaymentKeyPair, StakeKeyPair,
     BlockFrostChainContext, TransactionBuilder, TransactionOutput,
     HDWallet, PaymentSigningKey, StakeSigningKey, PaymentVerificationKey, StakeVerificationKey,
-    PaymentExtendedSigningKey, StakeExtendedSigningKey
+    PaymentExtendedSigningKey, StakeExtendedSigningKey, Value, MultiAsset, Asset, PolicyId, AssetName
 )
 from web3 import Web3
 from eth_account import Account
@@ -228,8 +228,6 @@ class PrepareAssets:
         tx_builder = TransactionBuilder(self.cardano_context)
         tx_builder.add_input_address(main_addr)
 
-        from pycardano import Value, MultiAsset, Asset, PolicyId, AssetName
-
         for i, w in enumerate(batch_wallets):
             if i >= len(cases): break
             dest_addr = Address.from_primitive(w['address'])
@@ -248,8 +246,6 @@ class PrepareAssets:
         self.cardano_context.submit_tx(signed_tx.to_cbor())
         print(f"✅ Distribution TX submitted: {signed_tx.id}")
         print("⏳ Waiting for confirmation (Cardano can take a minute)...")
-        # In a real tool we might wait for the TX to be seen in a block,
-        # but for this script we'll just inform the user.
 
     def distribute_evm_funds(self, case_file, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
@@ -329,14 +325,6 @@ class PrepareAssets:
             tx_builder = TransactionBuilder(self.cardano_context)
             tx_builder.add_input_address(addr)
 
-            # Send everything to destination
-            # TransactionBuilder will handle the change correctly if we don't specify it,
-            # but for a "sweep" we want the destination to be the recipient of all assets.
-
-            total_val = sum([utxo.output.amount for utxo in utxos], Value(0))
-            # We need to leave some for fee. pycardano handles this by sending everything
-            # to the change address if we just use add_input_address and build.
-
             signed_tx = tx_builder.build_and_sign([sk], change_address=dest_addr)
             self.cardano_context.submit_tx(signed_tx.to_cbor())
             print(f"    🚀 Cardano Sweep TX Submitted: {signed_tx.id}")
@@ -359,16 +347,19 @@ class PrepareAssets:
         print(f"🧹 Sweeping all EVM assets to {destination_address}...")
 
         for w in all_wallets:
-          try:
-            pk = w['private_key']
-            addr = self.w3.to_checksum_address(w['address'])
+            try:
+                pk = w['private_key']
+                addr = self.w3.to_checksum_address(w['address'])
+                nonce = self.w3.eth.get_transaction_count(addr)
 
-            # 1. Sweep Tokens
-            if token_contract:
-                tk_bal = token_contract.functions.balanceOf(addr).call()
+                # 1. Sweep Tokens
+                if token_contract:
+                    tk_bal = token_contract.functions.balanceOf(addr).call()
+                else:
+                    tk_bal = 0
+
                 if tk_bal > 0:
                     print(f"  - Sweeping {tk_bal} tokens from {w['address'][:10]}...")
-                    nonce = self.w3.eth.get_transaction_count(addr)
                     tx_tk = token_contract.functions.transfer(dest_addr, tk_bal).build_transaction({
                         'from': addr,
                         'nonce': nonce,
@@ -386,29 +377,29 @@ class PrepareAssets:
                         print(f"    ⚠️ Warning: Timeout waiting for token sweep receipt: {e}")
                     nonce += 1
 
-            # 2. Sweep Native
-            wan_bal = self.w3.eth.get_balance(addr)
-            gas_price = self.w3.eth.gas_price
-            gas_limit = 21000
-            total_fee = gas_price * gas_limit
+                # 2. Sweep Native
+                wan_bal = self.w3.eth.get_balance(addr)
+                gas_price = self.w3.eth.gas_price
+                gas_limit = 21000
+                total_fee = gas_price * gas_limit
 
-            if wan_bal > total_fee:
-                print(f"  - Sweeping {self.w3.from_wei(wan_bal - total_fee, 'ether')} WAN from {w['address'][:10]}...")
-                tx_wan = {
-                    'nonce': nonce,
-                    'to': dest_addr,
-                    'value': wan_bal - total_fee,
-                    'gas': gas_limit,
-                    'gasPrice': gas_price,
-                    'chainId': self.w3.eth.chain_id
-                }
-                signed_wan = self.w3.eth.account.sign_transaction(tx_wan, pk)
-                tx_hash_wan = self.w3.eth.send_raw_transaction(signed_wan.raw_transaction)
-                print(f"    🚀 WAN Sweep TX Submitted: {tx_hash_wan.hex()}")
-                try:
-                    self.w3.eth.wait_for_transaction_receipt(tx_hash_wan, timeout=300)
-                    print("    ✅ WAN Sweep Success!")
-                except Exception as e:
-                    print(f"    ⚠️ Warning: Timeout waiting for WAN sweep receipt: {e}")
-          except Exception as e:
-              print(f"  ❌ Error sweeping wallet {w['address'][:10]}: {e}")
+                if wan_bal > total_fee:
+                    print(f"  - Sweeping {self.w3.from_wei(wan_bal - total_fee, 'ether')} WAN from {w['address'][:10]}...")
+                    tx_wan = {
+                        'nonce': nonce,
+                        'to': dest_addr,
+                        'value': wan_bal - total_fee,
+                        'gas': gas_limit,
+                        'gasPrice': gas_price,
+                        'chainId': self.w3.eth.chain_id
+                    }
+                    signed_wan = self.w3.eth.account.sign_transaction(tx_wan, pk)
+                    tx_hash_wan = self.w3.eth.send_raw_transaction(signed_wan.raw_transaction)
+                    print(f"    🚀 WAN Sweep TX Submitted: {tx_hash_wan.hex()}")
+                    try:
+                        self.w3.eth.wait_for_transaction_receipt(tx_hash_wan, timeout=300)
+                        print("    ✅ WAN Sweep Success!")
+                    except Exception as e:
+                        print(f"    ⚠️ Warning: Timeout waiting for WAN sweep receipt: {e}")
+            except Exception as e:
+                print(f"  ❌ Error sweeping wallet {w['address'][:10]}: {e}")

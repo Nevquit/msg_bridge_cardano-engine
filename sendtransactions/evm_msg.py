@@ -15,34 +15,33 @@ class Erc20TokenRemote:
     def encode_plutus_data(self, target_cardano_addr, amount):
         """
         Encodes BeneficiaryData for the EVM send function.
-        Matches Wanchain XPort Cardano bridge requirements.
+        Matches Wanchain XPort Cardano bridge requirements (DemoMsgCodec).
         """
         try:
             addr = CardanoAddress.from_primitive(target_cardano_addr)
-            # Cardano Address encoding in Plutus Data:
-            # Address [ PaymentCredential, Option StakeCredential ]
-            # LocalAddress is Tag 1 in MsgAddress
-
             payment_cred = addr.payment_part.to_primitive()
             stake_cred = addr.staking_part.to_primitive() if addr.staking_part else None
 
-            # Construct Plutus Address
-            # Tag 0: VerificationKeyHash, Tag 1: ScriptHash
-            from pycardano import VerificationKeyHash, ScriptHash
+            from pycardano import VerificationKeyHash
             p_tag = 0 if isinstance(addr.payment_part, VerificationKeyHash) else 1
 
-            plutus_addr = cbor2.CBORTag(121, [
-                cbor2.CBORTag(121 + p_tag, [payment_cred]), # Payment Credential
-                cbor2.CBORTag(121, [cbor2.CBORTag(121, [cbor2.CBORTag(121, [stake_cred])])]) if stake_cred else cbor2.CBORTag(122, []) # Stake Credential Option (Some/Inline/PubKey)
+            # 1. Plutus Address structure: [ PaymentCredential, Option StakeCredential ]
+            ada_address = cbor2.CBORTag(121, [
+                cbor2.CBORTag(121 + p_tag, [payment_cred]),
+                cbor2.CBORTag(121, [cbor2.CBORTag(121, [stake_cred])]) if stake_cred else cbor2.CBORTag(122, [])
             ])
 
-            # MsgAddress Tag 1: LocalAddress
-            msg_address = cbor2.CBORTag(122, [cbor2.CBORTag(121, plutus_addr)])
+            # 2. LocalAddress wrapper (Tag 122)
+            # Match DemoMsgCodec: msgAddress -> msgAddressFields -> receiver -> adaAddress
+            receiver = cbor2.CBORTag(121, [ada_address])
+            msg_address_fields = cbor2.CBORTag(121, [receiver])
+            msg_address = cbor2.CBORTag(122, [msg_address_fields])
 
-            # BeneficiaryData Tag 0: [ address, amount ]
+            # 3. BeneficiaryData: [ address, amount ]
             beneficiary_data = cbor2.CBORTag(121, [msg_address, int(amount)])
 
-            return cbor2.dumps(beneficiary_data)
+            # 4. Final wrapper: [ beneficiary_data ]
+            return cbor2.dumps([beneficiary_data])
         except Exception as e:
             # Fallback to foreign address (Tag 0) if not a valid Cardano address
             msg_address = cbor2.CBORTag(121, [target_cardano_addr.encode('utf-8')])
