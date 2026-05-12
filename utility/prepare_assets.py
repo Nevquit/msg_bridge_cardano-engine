@@ -256,7 +256,7 @@ class PrepareAssets:
         token_addr = contracts.get('gx_token', '')
 
         main_pk = main_wallet['private_key']
-        main_addr = main_wallet['address']
+        main_addr = self.w3.to_checksum_address(main_wallet['address'])
 
         nonce = self.w3.eth.get_transaction_count(main_addr)
         for i, w in enumerate(batch_wallets):
@@ -277,6 +277,7 @@ class PrepareAssets:
             print(f"  Sent WAN to {w['address'][:10]}, TX: {tx_hash_wan.hex()}")
             nonce += 1
 
+            tx_hash_tk = None
             # 2. Send Token
             if token_addr:
                 amount_tk = int(cases[i]['amount_raw'])
@@ -295,8 +296,11 @@ class PrepareAssets:
                 nonce += 1
 
             print("    ⏳ Waiting for confirmations...")
-            self.w3.eth.wait_for_transaction_receipt(tx_hash_wan)
-            if token_addr: self.w3.eth.wait_for_transaction_receipt(tx_hash_tk)
+            try:
+                self.w3.eth.wait_for_transaction_receipt(tx_hash_wan, timeout=300)
+                if tx_hash_tk: self.w3.eth.wait_for_transaction_receipt(tx_hash_tk, timeout=300)
+            except Exception as e:
+                print(f"    ⚠️ Warning: Timeout waiting for distribution receipt: {e}")
 
     def sweep_cardano_assets(self, destination_address, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
@@ -346,6 +350,7 @@ class PrepareAssets:
         print(f"🧹 Sweeping all EVM assets to {destination_address}...")
 
         for w in all_wallets:
+          try:
             pk = w['private_key']
             addr = self.w3.to_checksum_address(w['address'])
 
@@ -364,7 +369,10 @@ class PrepareAssets:
                     })
                     signed_tk = self.w3.eth.account.sign_transaction(tx_tk, pk)
                     self.w3.eth.send_raw_transaction(signed_tk.raw_transaction)
-                    self.w3.eth.wait_for_transaction_receipt(signed_tk.hash)
+                    try:
+                        self.w3.eth.wait_for_transaction_receipt(signed_tk.hash, timeout=300)
+                    except Exception as e:
+                        print(f"    ⚠️ Warning: Timeout waiting for token sweep receipt: {e}")
 
             # 2. Sweep Native
             wan_bal = self.w3.eth.get_balance(addr)
@@ -385,4 +393,9 @@ class PrepareAssets:
                 }
                 signed_wan = self.w3.eth.account.sign_transaction(tx_wan, pk)
                 self.w3.eth.send_raw_transaction(signed_wan.raw_transaction)
-                self.w3.eth.wait_for_transaction_receipt(signed_wan.hash)
+                try:
+                    self.w3.eth.wait_for_transaction_receipt(signed_wan.hash, timeout=300)
+                except Exception as e:
+                    print(f"    ⚠️ Warning: Timeout waiting for WAN sweep receipt: {e}")
+          except Exception as e:
+              print(f"  ❌ Error sweeping wallet {w['address'][:10]}: {e}")
