@@ -297,3 +297,92 @@ class PrepareAssets:
             print("    ⏳ Waiting for confirmations...")
             self.w3.eth.wait_for_transaction_receipt(tx_hash_wan)
             if token_addr: self.w3.eth.wait_for_transaction_receipt(tx_hash_tk)
+
+    def sweep_cardano_assets(self, destination_address, wallets_info):
+        _, main_wallet, batch_wallets = wallets_info
+        all_wallets = [main_wallet] + batch_wallets
+        dest_addr = Address.from_primitive(destination_address)
+
+        print(f"🧹 Sweeping all Cardano assets to {destination_address}...")
+
+        for w in all_wallets:
+            sk_bytes = bytes.fromhex(w['private_key'])
+            sk = PaymentExtendedSigningKey.from_primitive(sk_bytes) if len(sk_bytes) == 64 else PaymentSigningKey.from_primitive(sk_bytes)
+            addr = Address.from_primitive(w['address'])
+
+            utxos = self.cardano_context.utxos(w['address'])
+            if not utxos: continue
+
+            print(f"  - Sweeping wallet {w['address'][:10]}...")
+            tx_builder = TransactionBuilder(self.cardano_context)
+            tx_builder.add_input_address(addr)
+
+            # Send everything to destination
+            # TransactionBuilder will handle the change correctly if we don't specify it,
+            # but for a "sweep" we want the destination to be the recipient of all assets.
+
+            total_val = sum([utxo.output.amount for utxo in utxos], Value(0))
+            # We need to leave some for fee. pycardano handles this by sending everything
+            # to the change address if we just use add_input_address and build.
+
+            signed_tx = tx_builder.build_and_sign([sk], change_address=dest_addr)
+            self.cardano_context.submit_tx(signed_tx.to_cbor())
+            print(f"    ✅ TX: {signed_tx.id}")
+
+    def sweep_evm_assets(self, destination_address, wallets_info):
+        _, main_wallet, batch_wallets = wallets_info
+        all_wallets = [main_wallet] + batch_wallets
+        dest_addr = self.w3.to_checksum_address(destination_address)
+
+        with open('config/contract_accounts.json', 'r') as f:
+            contracts = json.load(f)[self.network_name]['evm']
+        token_addr = contracts.get('gx_token', '')
+        erc20_abi = [
+            {"constant": True, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function"},
+            {"constant": False, "inputs": [{"name": "_to", "type": "address"}, {"name": "_value", "type": "uint256"}], "name": "transfer", "outputs": [{"name": "", "type": "bool"}], "type": "function"}
+        ]
+        token_contract = self.w3.eth.contract(address=self.w3.to_checksum_address(token_addr), abi=erc20_abi) if token_addr else None
+
+        print(f"🧹 Sweeping all EVM assets to {destination_address}...")
+
+        for w in all_wallets:
+            pk = w['private_key']
+            addr = self.w3.to_checksum_address(w['address'])
+
+            # 1. Sweep Tokens
+            if token_contract:
+                tk_bal = token_contract.functions.balanceOf(addr).call()
+                if tk_bal > 0:
+                    print(f"  - Sweeping {tk_bal} tokens from {w['address'][:10]}...")
+                    nonce = self.w3.eth.get_transaction_count(addr)
+                    tx_tk = token_contract.functions.transfer(dest_addr, tk_bal).build_transaction({
+                        'from': addr,
+                        'nonce': nonce,
+                        'gas': 60000,
+                        'gasPrice': self.w3.eth.gas_price,
+                        'chainId': self.w3.eth.chain_id
+                    })
+                    signed_tk = self.w3.eth.account.sign_transaction(tx_tk, pk)
+                    self.w3.eth.send_raw_transaction(signed_tk.raw_transaction)
+                    self.w3.eth.wait_for_transaction_receipt(signed_tk.hash)
+
+            # 2. Sweep Native
+            wan_bal = self.w3.eth.get_balance(addr)
+            gas_price = self.w3.eth.gas_price
+            gas_limit = 21000
+            total_fee = gas_price * gas_limit
+
+            if wan_bal > total_fee:
+                print(f"  - Sweeping {self.w3.from_wei(wan_bal - total_fee, 'ether')} WAN from {w['address'][:10]}...")
+                nonce = self.w3.eth.get_transaction_count(addr)
+                tx_wan = {
+                    'nonce': nonce,
+                    'to': dest_addr,
+                    'value': wan_bal - total_fee,
+                    'gas': gas_limit,
+                    'gasPrice': gas_price,
+                    'chainId': self.w3.eth.chain_id
+                }
+                signed_wan = self.w3.eth.account.sign_transaction(tx_wan, pk)
+                self.w3.eth.send_raw_transaction(signed_wan.raw_transaction)
+                self.w3.eth.wait_for_transaction_receipt(signed_wan.hash)
