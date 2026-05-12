@@ -241,7 +241,8 @@ class PrepareAssets:
                 'chainId': self.w3.eth.chain_id
             }
             signed_tx = self.w3.eth.account.sign_transaction(tx, main_pk)
-            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+            # Use raw_transaction instead of rawTransaction for compatibility
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
             print(f"  Sent to {w['address'][:10]}, TX Hash: {tx_hash.hex()}")
             print("    ⏳ Waiting for confirmation...")
             self.w3.eth.wait_for_transaction_receipt(tx_hash)
