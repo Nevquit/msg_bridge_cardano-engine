@@ -90,10 +90,10 @@ def main_menu(direction, case_file, network):
             if check_wallet_coverage(case_file, direction):
                 if is_cardano:
                     info = get_cardano_wallet_info()
-                    asset_preparer.distribute_cardano_funds(info[:3])
+                    asset_preparer.distribute_cardano_funds(case_file, info[:3])
                 else:
                     info = get_evm_wallet_info()
-                    asset_preparer.distribute_evm_funds(info[:3])
+                    asset_preparer.distribute_evm_funds(case_file, info[:3])
 
         elif choice == '4':
             if check_wallet_coverage(case_file, direction):

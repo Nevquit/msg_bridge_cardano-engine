@@ -207,22 +207,37 @@ class PrepareAssets:
 
             print(f"{i+1:<6} | {wan_f:0.4f}/{need_wan:0.4f} {wan_status:<2} | {tk}/{need_tk} {tk_status}")
 
-    def distribute_cardano_funds(self, wallets_info):
+    def distribute_cardano_funds(self, case_file, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
-        print(f"💸 Distributing ADA from {main_wallet['address'][:10]} to batch wallets...")
+        print(f"💸 Distributing ADA & Tokens from {main_wallet['address'][:10]} to batch wallets...")
+
+        cases = pd.read_csv(os.path.join("testcases", case_file)).to_dict('records')
+        with open('config/contract_accounts.json', 'r') as f:
+            contracts = json.load(f)[self.network_name]['cardano']
+        policy_id_hex = contracts.get('outbound_token_policy', '')
 
         sk_bytes = bytes.fromhex(main_wallet['private_key'])
-        if len(sk_bytes) == 64:
-            main_sk = PaymentExtendedSigningKey.from_primitive(sk_bytes)
-        else:
-            main_sk = PaymentSigningKey.from_primitive(sk_bytes)
+        main_sk = PaymentExtendedSigningKey.from_primitive(sk_bytes) if len(sk_bytes) == 64 else PaymentSigningKey.from_primitive(sk_bytes)
         main_addr = Address.from_primitive(main_wallet['address'])
 
         tx_builder = TransactionBuilder(self.cardano_context)
         tx_builder.add_input_address(main_addr)
 
-        for w in batch_wallets:
-            tx_builder.add_output(TransactionOutput(Address.from_primitive(w['address']), amount=5000000)) # 5 ADA
+        from pycardano import Value, MultiAsset, Asset, PolicyId, AssetName
+
+        for i, w in enumerate(batch_wallets):
+            if i >= len(cases): break
+            dest_addr = Address.from_primitive(w['address'])
+            amount_tk = int(cases[i]['amount_raw'])
+
+            val = Value(coin=5000000) # 5 ADA
+            if policy_id_hex:
+                val.multi_asset = MultiAsset({
+                    PolicyId.from_primitive(policy_id_hex): Asset({
+                        AssetName(b""): amount_tk # Using empty name or specific name if available
+                    })
+                })
+            tx_builder.add_output(TransactionOutput(dest_addr, amount=val))
 
         signed_tx = tx_builder.build_and_sign([main_sk], change_address=main_addr)
         self.cardano_context.submit_tx(signed_tx.to_cbor())
@@ -231,27 +246,54 @@ class PrepareAssets:
         # In a real tool we might wait for the TX to be seen in a block,
         # but for this script we'll just inform the user.
 
-    def distribute_evm_funds(self, wallets_info):
+    def distribute_evm_funds(self, case_file, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
-        print(f"💸 Distributing WAN from {main_wallet['address'][:10]} to batch wallets...")
+        print(f"💸 Distributing WAN & Tokens from {main_wallet['address'][:10]} to batch wallets...")
+
+        cases = pd.read_csv(os.path.join("testcases", case_file)).to_dict('records')
+        with open('config/contract_accounts.json', 'r') as f:
+            contracts = json.load(f)[self.network_name]['evm']
+        token_addr = contracts.get('gx_token', '')
 
         main_pk = main_wallet['private_key']
         main_addr = main_wallet['address']
 
         nonce = self.w3.eth.get_transaction_count(main_addr)
-        for w in batch_wallets:
-            tx = {
+        for i, w in enumerate(batch_wallets):
+            if i >= len(cases): break
+            dest_addr = self.w3.to_checksum_address(w['address'])
+
+            # 1. Send WAN
+            tx_wan = {
                 'nonce': nonce,
-                'to': w['address'],
+                'to': dest_addr,
                 'value': self.w3.to_wei(0.1, 'ether'),
                 'gas': 21000,
                 'gasPrice': self.w3.eth.gas_price,
                 'chainId': self.w3.eth.chain_id
             }
-            signed_tx = self.w3.eth.account.sign_transaction(tx, main_pk)
-            # Use raw_transaction instead of rawTransaction for compatibility
-            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-            print(f"  Sent to {w['address'][:10]}, TX Hash: {tx_hash.hex()}")
-            print("    ⏳ Waiting for confirmation...")
-            self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            signed_wan = self.w3.eth.account.sign_transaction(tx_wan, main_pk)
+            tx_hash_wan = self.w3.eth.send_raw_transaction(signed_wan.raw_transaction)
+            print(f"  Sent WAN to {w['address'][:10]}, TX: {tx_hash_wan.hex()}")
             nonce += 1
+
+            # 2. Send Token
+            if token_addr:
+                amount_tk = int(cases[i]['amount_raw'])
+                erc20_abi = [{"constant": False, "inputs": [{"name": "_to", "type": "address"}, {"name": "_value", "type": "uint256"}], "name": "transfer", "outputs": [{"name": "", "type": "bool"}], "type": "function"}]
+                token_contract = self.w3.eth.contract(address=self.w3.to_checksum_address(token_addr), abi=erc20_abi)
+                tx_tk = token_contract.functions.transfer(dest_addr, amount_tk).build_transaction({
+                    'from': main_addr,
+                    'nonce': nonce,
+                    'gas': 60000,
+                    'gasPrice': self.w3.eth.gas_price,
+                    'chainId': self.w3.eth.chain_id
+                })
+                signed_tk = self.w3.eth.account.sign_transaction(tx_tk, main_pk)
+                tx_hash_tk = self.w3.eth.send_raw_transaction(signed_tk.raw_transaction)
+                print(f"  Sent Token to {w['address'][:10]}, TX: {tx_hash_tk.hex()}")
+                nonce += 1
+
+            print("    ⏳ Waiting for confirmations...")
+            self.w3.eth.wait_for_transaction_receipt(tx_hash_wan)
+            if token_addr: self.w3.eth.wait_for_transaction_receipt(tx_hash_tk)
