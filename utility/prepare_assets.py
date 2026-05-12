@@ -151,15 +151,19 @@ class PrepareAssets:
         print(f"  ADA: {main_ada/1000000:.2f} (Need: {total_ada_needed:.2f}) {'✅' if main_ada/1000000 >= total_ada_needed else '❌'}")
         print(f"  Token: {main_tk} (Need: {total_token_needed}) {'✅' if main_tk >= total_token_needed else '❌'}")
 
-        print("-" * 50)
-        print(f"{'BATCH':<8} | {'ADA (Bal/Need)':<20} | {'TOKEN (Bal/Need)':<20}")
-        print("-" * 50)
+        print("-" * 55)
+        print(f"{'BATCH':<6} | {'ADA (Bal/Need)':<18} | {'TOKEN (Bal/Need)':<18}")
+        print("-" * 55)
         for i, w in enumerate(batch_wallets):
             if i >= len(cases): break
             ada, tk = get_info(w['address'])
             need_ada = 2.0
             need_tk = int(cases[i]['amount_raw'])
-            print(f"{i+1:<8} | {ada/1000000:0.2f}/{need_ada:0.2f} | {tk}/{need_tk}")
+
+            ada_status = "✔" if ada/1000000 >= need_ada else "❌"
+            tk_status = "✔" if tk >= need_tk else "❌"
+
+            print(f"{i+1:<6} | {ada/1000000:0.2f}/{need_ada:0.2f} {ada_status:<2} | {tk}/{need_tk} {tk_status}")
 
     def check_all_evm_balances(self, case_file, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
@@ -188,16 +192,20 @@ class PrepareAssets:
         print(f"  WAN: {main_wan_f:.4f} (Need: {total_wan_needed:.4f}) {'✅' if main_wan_f >= total_wan_needed else '❌'}")
         print(f"  Token: {main_tk} (Need: {total_token_needed}) {'✅' if main_tk >= total_token_needed else '❌'}")
 
-        print("-" * 50)
-        print(f"{'BATCH':<8} | {'WAN (Bal/Need)':<20} | {'TOKEN (Bal/Need)':<20}")
-        print("-" * 50)
+        print("-" * 55)
+        print(f"{'BATCH':<6} | {'WAN (Bal/Need)':<18} | {'TOKEN (Bal/Need)':<18}")
+        print("-" * 55)
         for i, w in enumerate(batch_wallets):
             if i >= len(cases): break
             wan, tk = get_info(w['address'])
             wan_f = float(self.w3.from_wei(wan, 'ether'))
             need_wan = 0.1
             need_tk = int(cases[i]['amount_raw'])
-            print(f"{i+1:<8} | {wan_f:0.4f}/{need_wan:0.4f} | {tk}/{need_tk}")
+
+            wan_status = "✔" if wan_f >= need_wan else "❌"
+            tk_status = "✔" if tk >= need_tk else "❌"
+
+            print(f"{i+1:<6} | {wan_f:0.4f}/{need_wan:0.4f} {wan_status:<2} | {tk}/{need_tk} {tk_status}")
 
     def distribute_cardano_funds(self, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
