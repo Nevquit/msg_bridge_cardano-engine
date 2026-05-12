@@ -130,7 +130,8 @@ class PrepareAssets:
         with open('config/contract_accounts.json', 'r') as f:
             contracts = json.load(f)[self.network_name]['cardano']
 
-        policy = contracts.get('outbound_token_policy', '')
+        policy = contracts.get('demo_token_policy', '')
+        token_name = contracts.get('demo_token_name', '')
 
         def get_info(addr):
             try:
@@ -141,7 +142,10 @@ class PrepareAssets:
                     if utxo.output.amount.multi_asset:
                         for p, assets in utxo.output.amount.multi_asset.items():
                             if str(p) == policy:
-                                tokens += sum([qty for name, qty in assets.items()])
+                                if token_name:
+                                    tokens += assets.get(AssetName.from_primitive(token_name), 0)
+                                else:
+                                    tokens += sum([qty for name, qty in assets.items()])
                 return lovelace, tokens
             except:
                 return 0, 0
@@ -214,7 +218,8 @@ class PrepareAssets:
         cases = pd.read_csv(os.path.join("testcases", case_file)).to_dict('records')
         with open('config/contract_accounts.json', 'r') as f:
             contracts = json.load(f)[self.network_name]['cardano']
-        policy_id_hex = contracts.get('outbound_token_policy', '')
+        policy_id_hex = contracts.get('demo_token_policy', '')
+        token_name_hex = contracts.get('demo_token_name', '')
 
         sk_bytes = bytes.fromhex(main_wallet['private_key'])
         main_sk = PaymentExtendedSigningKey.from_primitive(sk_bytes) if len(sk_bytes) == 64 else PaymentSigningKey.from_primitive(sk_bytes)
@@ -234,7 +239,7 @@ class PrepareAssets:
             if policy_id_hex:
                 val.multi_asset = MultiAsset({
                     PolicyId.from_primitive(policy_id_hex): Asset({
-                        AssetName(b""): amount_tk # Using empty name or specific name if available
+                        AssetName.from_primitive(token_name_hex) if token_name_hex else AssetName(b""): amount_tk
                     })
                 })
             tx_builder.add_output(TransactionOutput(dest_addr, amount=val))
@@ -286,7 +291,7 @@ class PrepareAssets:
                 tx_tk = token_contract.functions.transfer(dest_addr, amount_tk).build_transaction({
                     'from': main_addr,
                     'nonce': nonce,
-                    'gas': 60000,
+                    'gas': 100000,
                     'gasPrice': self.w3.eth.gas_price,
                     'chainId': self.w3.eth.chain_id
                 })
@@ -298,7 +303,10 @@ class PrepareAssets:
             print("    ⏳ Waiting for confirmations...")
             try:
                 self.w3.eth.wait_for_transaction_receipt(tx_hash_wan, timeout=300)
-                if tx_hash_tk: self.w3.eth.wait_for_transaction_receipt(tx_hash_tk, timeout=300)
+                print("    ✅ WAN Distribution Success!")
+                if tx_hash_tk:
+                    self.w3.eth.wait_for_transaction_receipt(tx_hash_tk, timeout=300)
+                    print("    ✅ Token Distribution Success!")
             except Exception as e:
                 print(f"    ⚠️ Warning: Timeout waiting for distribution receipt: {e}")
 
@@ -331,7 +339,8 @@ class PrepareAssets:
 
             signed_tx = tx_builder.build_and_sign([sk], change_address=dest_addr)
             self.cardano_context.submit_tx(signed_tx.to_cbor())
-            print(f"    ✅ TX: {signed_tx.id}")
+            print(f"    🚀 Cardano Sweep TX Submitted: {signed_tx.id}")
+            print("    ✅ Cardano Sweep Success!")
 
     def sweep_evm_assets(self, destination_address, wallets_info):
         _, main_wallet, batch_wallets = wallets_info
@@ -363,16 +372,19 @@ class PrepareAssets:
                     tx_tk = token_contract.functions.transfer(dest_addr, tk_bal).build_transaction({
                         'from': addr,
                         'nonce': nonce,
-                        'gas': 60000,
+                        'gas': 100000,
                         'gasPrice': self.w3.eth.gas_price,
                         'chainId': self.w3.eth.chain_id
                     })
                     signed_tk = self.w3.eth.account.sign_transaction(tx_tk, pk)
-                    self.w3.eth.send_raw_transaction(signed_tk.raw_transaction)
+                    tx_hash_tk = self.w3.eth.send_raw_transaction(signed_tk.raw_transaction)
+                    print(f"    🚀 Token Sweep TX Submitted: {tx_hash_tk.hex()}")
                     try:
-                        self.w3.eth.wait_for_transaction_receipt(signed_tk.hash, timeout=300)
+                        self.w3.eth.wait_for_transaction_receipt(tx_hash_tk, timeout=300)
+                        print("    ✅ Token Sweep Success!")
                     except Exception as e:
                         print(f"    ⚠️ Warning: Timeout waiting for token sweep receipt: {e}")
+                    nonce += 1
 
             # 2. Sweep Native
             wan_bal = self.w3.eth.get_balance(addr)
@@ -382,7 +394,6 @@ class PrepareAssets:
 
             if wan_bal > total_fee:
                 print(f"  - Sweeping {self.w3.from_wei(wan_bal - total_fee, 'ether')} WAN from {w['address'][:10]}...")
-                nonce = self.w3.eth.get_transaction_count(addr)
                 tx_wan = {
                     'nonce': nonce,
                     'to': dest_addr,
@@ -392,9 +403,11 @@ class PrepareAssets:
                     'chainId': self.w3.eth.chain_id
                 }
                 signed_wan = self.w3.eth.account.sign_transaction(tx_wan, pk)
-                self.w3.eth.send_raw_transaction(signed_wan.raw_transaction)
+                tx_hash_wan = self.w3.eth.send_raw_transaction(signed_wan.raw_transaction)
+                print(f"    🚀 WAN Sweep TX Submitted: {tx_hash_wan.hex()}")
                 try:
-                    self.w3.eth.wait_for_transaction_receipt(signed_wan.hash, timeout=300)
+                    self.w3.eth.wait_for_transaction_receipt(tx_hash_wan, timeout=300)
+                    print("    ✅ WAN Sweep Success!")
                 except Exception as e:
                     print(f"    ⚠️ Warning: Timeout waiting for WAN sweep receipt: {e}")
           except Exception as e:
