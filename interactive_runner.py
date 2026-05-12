@@ -67,8 +67,9 @@ def main_menu(direction, case_file, network):
         print(f"2. 🔍 Check {target_name} Balances")
         print(f"3. 💸 Distribute Funds ({target_name})")
         print("4. 🚀 Run Transactions")
-        print("5. 🔙 Change Direction/Case")
-        print("6. 🚪 Exit")
+        print("5. 🧹 Sweep Assets")
+        print("6. 🔙 Change Direction/Case")
+        print("7. 🚪 Exit")
         print("="*50)
         choice = input("👉 Choice: ").strip()
 
@@ -102,8 +103,17 @@ def main_menu(direction, case_file, network):
                 else:
                     run_evm_to_cardano(case_file, network)
 
-        elif choice == '5': return
-        elif choice == '6': sys.exit(0)
+        elif choice == '5':
+            dest_addr = get_confirmed_address(f"👉 Enter Destination {target_name} Address: ")
+            if is_cardano:
+                info = get_cardano_wallet_info()
+                if info: asset_preparer.sweep_cardano_assets(dest_addr, info[:3])
+            else:
+                info = get_evm_wallet_info()
+                if info: asset_preparer.sweep_evm_assets(dest_addr, info[:3])
+
+        elif choice == '6': return
+        elif choice == '7': sys.exit(0)
 
 def run_cardano_to_evm(case_file, network, context):
     info = get_cardano_wallet_info()
