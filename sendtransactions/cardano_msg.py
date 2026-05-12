@@ -33,8 +33,9 @@ def cardano_to_evm_msg(context, sender_sk_hex, target_address_evm, amount, outbo
         addr_bytes = target_address_evm.encode('utf-8')
 
     # MsgAddress Tag 0: ForeignAddress [ bytes ]
-    # Nesting to match DemoMsgCodec: Tag 121 [ [ bytes ] ]
-    receiver = cbor2.CBORTag(121, [addr_bytes])
+    # Nesting to match DemoMsgCodec sequence:
+    # msgAddress (Tag 121) -> arrayValue[0] (msgAddressFields) -> arrayValue[0] (receiver) -> data
+    receiver = addr_bytes
     msg_address_fields = [receiver]
     msg_address = cbor2.CBORTag(121, [msg_address_fields])
 
