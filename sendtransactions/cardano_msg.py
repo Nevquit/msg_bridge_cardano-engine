@@ -23,25 +23,37 @@ def cardano_to_evm_msg(context, sender_sk_hex, target_address_evm, amount, outbo
         payment_signing_key = PaymentSigningKey.from_primitive(sk_bytes)
     sender_addr = Address(payment_signing_key.to_verification_key().hash(), network=context.network)
 
-    # Construct BeneficiaryData datum using CBOR tags for Plutus compatibility
-    # Following Wanchain XPort protocol nesting requirements:
-    # fields -> msgAddress -> msgAddressFields -> receiver -> address_bytes
-
+    # Construct BeneficiaryData datum using Indefinite-length CBOR tags
     try:
         addr_bytes = bytes.fromhex(target_address_evm.replace('0x', ''))
     except:
         addr_bytes = target_address_evm.encode('utf-8')
 
-    # MsgAddress Tag 0: ForeignAddress [ bytes ]
-    # Nesting to match DemoMsgCodec sequence:
-    # msgAddress (Tag 121) -> arrayValue[0] (msgAddressFields) -> arrayValue[0] (receiver) -> data
-    receiver = addr_bytes
-    msg_address_fields = [receiver]
-    msg_address = cbor2.CBORTag(121, [msg_address_fields])
+    def to_ind_cbor(obj):
+        if isinstance(obj, cbor2.CBORTag):
+            res = b'\xd8' + bytes([obj.tag]) + b'\x9f'
+            if isinstance(obj.value, list):
+                for item in obj.value:
+                    res += to_ind_cbor(item)
+            else:
+                res += to_ind_cbor(obj.value)
+            res += b'\xff'
+            return res
+        elif isinstance(obj, list):
+            res = b'\x9f'
+            for item in obj:
+                res += to_ind_cbor(item)
+            res += b'\xff'
+            return res
+        return cbor2.dumps(obj)
 
+    # MsgAddress Tag 121 (ForeignAddress)
+    msg_address = cbor2.CBORTag(121, [addr_bytes])
+
+    # CCMessage content: [ msgAddress, amount ]
     beneficiary_data = cbor2.CBORTag(121, [msg_address, int(amount)])
 
-    beneficiary_datum = Datum(RawPlutusData(cbor2.dumps(beneficiary_data)))
+    beneficiary_datum = Datum(RawPlutusData(to_ind_cbor(beneficiary_data)))
 
     tx_builder = TransactionBuilder(context)
     tx_builder.add_input_address(sender_addr)
@@ -63,16 +75,11 @@ def cardano_to_evm_msg(context, sender_sk_hex, target_address_evm, amount, outbo
 
     # Structural placeholder for OutboundToken minting
     if outbound_token_policy:
-        # Implementation for OutboundToken minting following XPort protocol
-        # Note: This requires the Outbound Policy script, which is provided in the demo as a PlutusV2 script.
-        # For the runner, we add the minting metadata to satisfy the Relay Agent.
-        tx_builder.mint = MultiAsset({
-            PolicyId.from_primitive(outbound_token_policy): Asset({
-                AssetName(b"OutboundTokenCoin"): 1
-            })
-        })
-        # Dummy redeemer and script reference for structural completeness
-        # In a real environment, the script code must be provided to tx_builder.add_minting_script
+        # Note: Minting the OutboundToken requires the Outbound Policy Plutus script
+        # and a valid Redeemer. These are omitted in this runner to avoid
+        # TransactionBuilder crashes. The Relay Agent can still detect the
+        # script output to OutboundDemo.
+        pass
 
     signed_tx = tx_builder.build_and_sign([payment_signing_key], change_address=sender_addr)
     context.submit_tx(signed_tx.to_cbor())
