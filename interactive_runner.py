@@ -135,7 +135,9 @@ def run_cardano_to_evm(case_file, network, context):
             case['to_address'],
             case['amount_raw'],
             contracts['outbound_demo'],
-            contracts.get('outbound_token_policy', '')
+            contracts.get('outbound_token_policy', ''),
+            demo_token_policy=contracts.get('demo_token_policy'),
+            demo_token_name=contracts.get('demo_token_name')
         )
         if tx_id: print(f"  ✅ Success! TX ID: {tx_id}")
         else: print(f"  ❌ Error: {err}")
@@ -157,8 +159,22 @@ def run_evm_to_cardano(case_file, network):
     for i, case in enumerate(cases):
         if i >= len(batch_wallets): break
         wallet = batch_wallets[i]
+
+        # 1. ERC20 Approval
+        print(f"[{i+1}/{len(cases)}] Approving tokens for {wallet['address'][:10]}...")
+        app_hash, app_err = remote.approve(wallet['private_key'], contracts['gx_token'], contracts['token_home'], case['amount_raw'])
+        if app_err:
+            print(f"  ❌ Approval Error: {app_err}")
+            continue
+        if app_hash != "Already Approved":
+            print(f"  ✅ Approved! Hash: {app_hash}")
+            time.sleep(10) # Wait for approval to be mined
+        else:
+            print("  ℹ️ Already approved.")
+
+        # 2. Bridge Send
         plutus_data = remote.encode_plutus_data(case['to_address'], case['amount_raw'])
-        print(f"[{i+1}/{len(cases)}] Sending from {wallet['address'][:10]}...")
+        print(f"  📤 Sending cross-chain...")
         tx_hash, err = remote.send(wallet['private_key'], plutus_data)
         if tx_hash: print(f"  ✅ Success! Hash: {tx_hash}")
         else: print(f"  ❌ Error: {err}")
