@@ -43,47 +43,66 @@ class Erc20TokenRemote:
     def encode_plutus_data(self, target_cardano_addr, amount):
         """
         Encodes CCMessage for the EVM send function.
-        Matches Wanchain XPort Cardano bridge requirements (DemoMsgCodec).
-        Uses Indefinite-length encoding (9f ... ff) and specific Plutus nesting.
+        Aligns with Wanchain XPort Cardano bridge requirements and Mesh-based logic.
         """
         try:
             addr = CardanoAddress.from_primitive(target_cardano_addr)
             p_hash = addr.payment_part.to_primitive()
             s_hash = addr.staking_part.to_primitive() if addr.staking_part else None
 
-            # p_cred: List [ Tag 121 [ List [ Bytes ] ] ]
-            p_cred = [cbor2.CBORTag(121, [[p_hash]])]
+            # Credential Tag 121 [ Hash ]
+            p_cred = cbor2.CBORTag(121, [p_hash])
 
             if s_hash:
-                # s_cred: List [ Tag 121 [ List [ Tag 121 [ List [ Tag 121 [ List [ Bytes ] ] ] ] ] ] ]
-                # This matches the nested Some [ Inline [ Credential [ Bytes ] ] ] structure
-                s_cred = [cbor2.CBORTag(121, [
-                    cbor2.CBORTag(121, [[
-                        cbor2.CBORTag(121, [[s_hash]])
-                    ]])
-                ])]
+                # Staking: Tag 121 [ Tag 121 [ Tag 121 [ Hash ] ] ]
+                s_cred = cbor2.CBORTag(121, [cbor2.CBORTag(121, [cbor2.CBORTag(121, [s_hash])])])
             else:
-                # Nothing: Tag 122 [ ]
+                # None: Tag 122 [ ]
                 s_cred = cbor2.CBORTag(122, [])
 
-            # ada_address: List [ p_cred, s_cred ]
-            ada_address = [p_cred, s_cred]
+            # Mesh Address Construction (mPubKeyAddress)
+            # Wrapped in Tag 121 per Plutus convention for Constructor 0
+            mesh_address = cbor2.CBORTag(121, [p_cred, s_cred])
 
-            # msgAddress: Tag 121 [ Tag 122 [ List [ ada_address ] ] ]
-            msg_address = cbor2.CBORTag(121, [
-                cbor2.CBORTag(122, [ada_address])
-            ])
+            # MsgAddress Tag 122 (LocalAddress)
+            msg_address = cbor2.CBORTag(122, [mesh_address])
 
             # Final CCMessage: Tag 121 [ msgAddress, amount ]
-            # The top-level is a Tag (Major Type 6) as required by the RFC8949Decoder
             cc_message = cbor2.CBORTag(121, [msg_address, int(amount)])
 
             return self.to_indefinite_cbor(cc_message)
         except Exception as e:
-            # Fallback to foreign address (Tag 121)
+            # Fallback to ForeignAddress: Tag 121 (LocalAddress) -> Tag 121 [ data ]
             msg_address = cbor2.CBORTag(121, [target_cardano_addr.encode('utf-8')])
             cc_message = cbor2.CBORTag(121, [msg_address, int(amount)])
             return self.to_indefinite_cbor(cc_message)
+
+    def approve(self, private_key, token_addr, spender_addr, amount, gas_limit=100000):
+        """
+        Approves a spender to move tokens from the account.
+        """
+        account = self.w3.eth.account.from_key(private_key)
+        with open('config/abis/XToken.json', 'r') as f:
+            token_abi = json.load(f)
+            if 'abi' in token_abi: token_abi = token_abi['abi']
+
+        token_contract = self.w3.eth.contract(address=token_addr, abi=token_abi)
+
+        # Check current allowance
+        allowance = token_contract.functions.allowance(account.address, spender_addr).call()
+        if allowance >= int(amount):
+            return "Already Approved", None
+
+        nonce = self.w3.eth.get_transaction_count(account.address)
+        tx = token_contract.functions.approve(spender_addr, int(amount)).build_transaction({
+            'from': account.address,
+            'nonce': nonce,
+            'gas': gas_limit,
+            'gasPrice': self.w3.eth.gas_price
+        })
+        signed_tx = self.w3.eth.account.sign_transaction(tx, private_key)
+        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+        return tx_hash.hex(), None
 
     def send(self, private_key, plutus_data, gas_limit=300000):
         account = self.w3.eth.account.from_key(private_key)
