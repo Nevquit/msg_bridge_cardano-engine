@@ -152,6 +152,7 @@ activemq-data/
 .envrc
 current_cardano_wallets.json
 current_evm_wallets.json
+wallets/
 .venv
 env/
 venv/

@@ -16,36 +16,39 @@ class Erc20TokenRemote:
         """
         Encodes CCMessage for the EVM send function.
         Matches Wanchain XPort Cardano bridge requirements (ERC20TokenHome4CardanoV2.sol).
+        Structure: Tag 121 [ Tag 122 [ [ Tag 121 [ [Payment, Stake] ] ] ], amount ]
         """
         try:
             addr = CardanoAddress.from_primitive(target_cardano_addr)
-            payment_cred = addr.payment_part.to_primitive()
-            stake_cred = addr.staking_part.to_primitive() if addr.staking_part else None
+            p_hash = addr.payment_part.to_primitive()
+            s_hash = addr.staking_part.to_primitive() if addr.staking_part else None
 
             from pycardano import VerificationKeyHash
-            p_tag = 0 if isinstance(addr.payment_part, VerificationKeyHash) else 1
+            p_tag = 121 if isinstance(addr.payment_part, VerificationKeyHash) else 122
+            p_cred = cbor2.CBORTag(p_tag, [p_hash])
 
-            # 1. Cardano AdaAddress structure: [ PaymentCredential, Option StakeCredential ]
-            # Note: Tag 121 is used for constructor 0
-            ada_address = cbor2.CBORTag(121, [
-                cbor2.CBORTag(121 + p_tag, [payment_cred]), # Payment Key
-                cbor2.CBORTag(121, [cbor2.CBORTag(121, [stake_cred])]) if stake_cred else cbor2.CBORTag(122, []) # Stake Key Option
-            ])
+            if s_hash:
+                s_tag = 121 if isinstance(addr.staking_part, VerificationKeyHash) else 122
+                # StakeCredential Option: Some [ Inline [ Credential ] ]
+                s_cred = cbor2.CBORTag(121, [cbor2.CBORTag(121, [cbor2.CBORTag(s_tag, [s_hash])])])
+            else:
+                s_cred = cbor2.CBORTag(122, [])
 
-            # 2. MsgAddress (LocalAddress) wrapper (Tag 122)
-            # Match DemoMsgCodec parser: msgAddress -> msgAddressFields -> receiver -> adaAddress
-            # All inner wrappers except LocalAddress must be Arrays (Lists) for RFC8949Decoder compatibility
+            ada_address = [p_cred, s_cred]
+
+            # Match DemoMsgCodec nesting path:
+            # msgAddress (Tag 122) -> arrayValue[0] (msgAddressFields) -> arrayValue[0] (receiver) -> arrayValue[0] (adaAddress)
             receiver = cbor2.CBORTag(121, [ada_address])
             msg_address_fields = [receiver]
             msg_address = cbor2.CBORTag(122, [msg_address_fields])
 
-            # 3. CCMessage fields: [ msgAddress, amount ]
-            # The decoder expects 'fields' to be MajorType.Array
-            fields = [msg_address, int(amount)]
+            # Final CCMessage (Tag 121)
+            # require(cb.arrayValue.length == 1) -> Tag 121 content is one item (the field list)
+            # fields = cb.arrayValue[0] -> fields is the field list
+            # require(fields.arrayValue.length == 2) -> field list has 2 items
+            cc_message = cbor2.CBORTag(121, [msg_address, int(amount)])
 
-            # 4. Final wrapper: [ fields ]
-            # The decoder starts with require(cb.arrayValue.length == 1)
-            return cbor2.dumps([fields])
+            return cbor2.dumps(cc_message)
         except Exception as e:
             # Fallback to foreign address (Tag 0) if not a valid Cardano address
             msg_address = cbor2.CBORTag(121, [target_cardano_addr.encode('utf-8')])
