@@ -22,7 +22,7 @@ from utility.interaction_utils import (
     get_network, get_direction, get_case_file,
     get_cardano_wallet_info, get_evm_wallet_info, get_confirmed_address
 )
-from sendtransactions.cardano_msg import cardano_to_evm_msg
+from sendtransactions.cardano_msg import cardano_to_evm_msg, consume_inbound_utxo
 from sendtransactions.evm_msg import Erc20TokenRemote
 
 def check_wallet_coverage(case_file, direction):
@@ -67,9 +67,11 @@ def main_menu(direction, case_file, network):
         print(f"2. 🔍 Check {target_name} Balances")
         print(f"3. 💸 Distribute Funds ({target_name})")
         print("4. 🚀 Run Transactions")
-        print("5. 🧹 Sweep Assets")
-        print("6. 🔙 Change Direction/Case")
-        print("7. 🚪 Exit")
+        if not is_cardano: # EVM -> Cardano direction
+            print("5. 📥 Consume Cardano Inbound UTXO")
+        print("6. 🧹 Sweep Assets")
+        print("7. 🔙 Change Direction/Case")
+        print("8. 🚪 Exit")
         print("="*50)
         choice = input("👉 Choice: ").strip()
 
@@ -103,7 +105,10 @@ def main_menu(direction, case_file, network):
                 else:
                     run_evm_to_cardano(case_file, network)
 
-        elif choice == '5':
+        elif choice == '5' and not is_cardano:
+            run_consume_utxo(network, asset_preparer.cardano_context)
+
+        elif choice == '6':
             dest_addr = get_confirmed_address(f"👉 Enter Destination {target_name} Address: ")
             if is_cardano:
                 info = get_cardano_wallet_info()
@@ -112,8 +117,8 @@ def main_menu(direction, case_file, network):
                 info = get_evm_wallet_info()
                 if info: asset_preparer.sweep_evm_assets(dest_addr, info[:3])
 
-        elif choice == '6': return
-        elif choice == '7': sys.exit(0)
+        elif choice == '7': return
+        elif choice == '8': sys.exit(0)
 
 def run_cardano_to_evm(case_file, network, context):
     info = get_cardano_wallet_info()
@@ -178,6 +183,32 @@ def run_evm_to_cardano(case_file, network):
         tx_hash, err = remote.send(wallet['private_key'], plutus_data)
         if tx_hash: print(f"  ✅ Success! Hash: {tx_hash}")
         else: print(f"  ❌ Error: {err}")
+
+def run_consume_utxo(network, context):
+    info = get_cardano_wallet_info()
+    if not info: return
+    _, _, batch_wallets, _ = info
+
+    with open('config/contract_accounts.json', 'r') as f:
+        contracts = json.load(f)[network]['cardano']
+
+    print("\n--- Cardano Inbound UTXO Consumption ---")
+    tx_hash = input("👉 Enter UTXO TX Hash: ").strip()
+    try:
+        tx_index = int(input("👉 Enter UTXO Index: ").strip())
+    except:
+        print("❌ Invalid Index.")
+        return
+
+    # Use the first batch wallet as the consumer/collateral provider
+    wallet = batch_wallets[0]
+    print(f"🚀 Attempting to consume using wallet {wallet['address'][:10]}...")
+
+    res, err = consume_inbound_utxo(context, wallet['private_key'], tx_hash, tx_index, contracts['inbound_demo'])
+    if res:
+        print(f"✅ Success! TX ID: {res}")
+    else:
+        print(f"❌ Error: {err}")
 
 def run():
     print("👋 Welcome to Cardano-EVM XPort Bridge Runner")
