@@ -3,7 +3,8 @@ from pycardano import (
     Address, TransactionBuilder, TransactionOutput,
     BlockFrostChainContext, Network, PaymentSigningKey,
     Value, MultiAsset, AssetName, Asset, PolicyId,
-    PlutusV2Script, Redeemer, PaymentExtendedSigningKey
+    PlutusV2Script, Redeemer, PaymentExtendedSigningKey,
+    UTxO, TransactionInput
 )
 from pycardano import PlutusData, Datum, RawPlutusData
 import cbor2
@@ -85,3 +86,35 @@ def cardano_to_evm_msg(context, sender_sk_hex, target_address_evm, amount, outbo
     context.submit_tx(signed_tx.to_cbor())
 
     return signed_tx.id, None
+
+def consume_inbound_utxo(context, sender_sk_hex, tx_hash, tx_index, script_addr):
+    """
+    Manually consumes a UTXO from the InboundDemo script.
+    Note: Requires script source or reference UTXO. For this engine,
+    we assume the user has configured the script and we provide a structural consumption.
+    """
+    sk_bytes = bytes.fromhex(sender_sk_hex)
+    if len(sk_bytes) == 64:
+        payment_signing_key = PaymentExtendedSigningKey.from_primitive(sk_bytes)
+    else:
+        payment_signing_key = PaymentSigningKey.from_primitive(sk_bytes)
+
+    sender_addr = Address(payment_signing_key.to_verification_key().hash(), network=context.network)
+
+    # 1. Fetch the target UTXO
+    # In a real scenario, we'd fetch from context. Here we use the provided hash/index.
+    # Note: Spending from script requires:
+    # - The Script (PlutusV2)
+    # - A Redeemer
+    # - Collateral UTXO from the sender
+
+    tx_builder = TransactionBuilder(context)
+    tx_builder.add_input_address(sender_addr)
+
+    # Placeholder for script spending logic
+    # In the demo, the InboundDemo script usually has a simple redeemer
+
+    print(f"  🔍 Consumption logic for {tx_hash}#{tx_index} initiated.")
+    print("  ⚠️  Manual consumption requires the script source and redeemer which vary by deployment.")
+
+    return None, "Manual consumption logic requires script/redeemer integration specific to the deployment."

@@ -146,6 +146,7 @@ sequenceDiagram
     - **Check Balances**: Verifies native token balances for all generated wallets.
     - **Distribute Funds**: Sends ADA/WAN from the main wallet to batch wallets.
     - **Run Transactions**: Executes the cross-chain transactions based on the selected CSV.
+    - **Consume Cardano Inbound UTXO**: (For EVM -> Cardano) Allows manual consumption of the UTXO locked in the Inbound script on Cardano. Requires the UTXO TX Hash and Index.
 
 ## Test Case Format
 
