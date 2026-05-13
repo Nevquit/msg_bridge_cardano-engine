@@ -12,48 +12,78 @@ class Erc20TokenRemote:
             if 'abi' in abi: abi = abi['abi']
         self.contract = self.w3.eth.contract(address=token_home_addr, abi=abi)
 
+    def to_indefinite_cbor(self, obj):
+        """
+        Encodes an object to indefinite-length CBOR (9f ... ff) for constructor/list types.
+        """
+        if isinstance(obj, cbor2.CBORTag):
+            # d8 <tag> 9f ... ff
+            res = b'\xd8' + bytes([obj.tag]) + b'\x9f'
+            if isinstance(obj.value, list):
+                for item in obj.value:
+                    res += self.to_indefinite_cbor(item)
+            else:
+                res += self.to_indefinite_cbor(obj.value)
+            res += b'\xff'
+            return res
+        elif isinstance(obj, list):
+            res = b'\x9f'
+            for item in obj:
+                res += self.to_indefinite_cbor(item)
+            res += b'\xff'
+            return res
+        elif isinstance(obj, bytes) and len(obj) > 32:
+            # Handle long bytes as indefinite chunks if necessary,
+            # but Plutus usually just uses definite for < 64 bytes.
+            # The success hex showed 58 1c which is definite.
+            return cbor2.dumps(obj)
+        else:
+            return cbor2.dumps(obj)
+
     def encode_plutus_data(self, target_cardano_addr, amount):
         """
         Encodes CCMessage for the EVM send function.
-        Matches Wanchain XPort Cardano bridge requirements (ERC20TokenHome4CardanoV2.sol).
-        Structure: Tag 121 [ Tag 122 [ [ Tag 121 [ [Payment, Stake] ] ] ], amount ]
+        Matches Wanchain XPort Cardano bridge requirements (DemoMsgCodec).
+        Uses Indefinite-length encoding (9f ... ff) and specific Plutus nesting.
         """
         try:
             addr = CardanoAddress.from_primitive(target_cardano_addr)
             p_hash = addr.payment_part.to_primitive()
             s_hash = addr.staking_part.to_primitive() if addr.staking_part else None
 
-            from pycardano import VerificationKeyHash
-            p_tag = 121 if isinstance(addr.payment_part, VerificationKeyHash) else 122
-            p_cred = cbor2.CBORTag(p_tag, [p_hash])
+            # p_cred: List [ Tag 121 [ List [ Bytes ] ] ]
+            p_cred = [cbor2.CBORTag(121, [[p_hash]])]
 
             if s_hash:
-                s_tag = 121 if isinstance(addr.staking_part, VerificationKeyHash) else 122
-                # StakeCredential Option: Some [ Inline [ Credential ] ]
-                s_cred = cbor2.CBORTag(121, [cbor2.CBORTag(121, [cbor2.CBORTag(s_tag, [s_hash])])])
+                # s_cred: List [ Tag 121 [ List [ Tag 121 [ List [ Tag 121 [ List [ Bytes ] ] ] ] ] ] ]
+                # This matches the nested Some [ Inline [ Credential [ Bytes ] ] ] structure
+                s_cred = [cbor2.CBORTag(121, [
+                    cbor2.CBORTag(121, [[
+                        cbor2.CBORTag(121, [[s_hash]])
+                    ]])
+                ])]
             else:
+                # Nothing: Tag 122 [ ]
                 s_cred = cbor2.CBORTag(122, [])
 
+            # ada_address: List [ p_cred, s_cred ]
             ada_address = [p_cred, s_cred]
 
-            # Match DemoMsgCodec nesting path:
-            # msgAddress (Tag 122) -> arrayValue[0] (msgAddressFields) -> arrayValue[0] (receiver) -> arrayValue[0] (adaAddress)
-            receiver = cbor2.CBORTag(121, [ada_address])
-            msg_address_fields = [receiver]
-            msg_address = cbor2.CBORTag(122, [msg_address_fields])
+            # msgAddress: Tag 121 [ Tag 122 [ List [ ada_address ] ] ]
+            msg_address = cbor2.CBORTag(121, [
+                cbor2.CBORTag(122, [ada_address])
+            ])
 
-            # Final CCMessage (Tag 121)
-            # require(cb.arrayValue.length == 1) -> Tag 121 content is one item (the field list)
-            # fields = cb.arrayValue[0] -> fields is the field list
-            # require(fields.arrayValue.length == 2) -> field list has 2 items
+            # Final CCMessage: Tag 121 [ msgAddress, amount ]
+            # The top-level is a Tag (Major Type 6) as required by the RFC8949Decoder
             cc_message = cbor2.CBORTag(121, [msg_address, int(amount)])
 
-            return cbor2.dumps(cc_message)
+            return self.to_indefinite_cbor(cc_message)
         except Exception as e:
-            # Fallback to foreign address (Tag 0) if not a valid Cardano address
+            # Fallback to foreign address (Tag 121)
             msg_address = cbor2.CBORTag(121, [target_cardano_addr.encode('utf-8')])
-            beneficiary_data = cbor2.CBORTag(121, [msg_address, int(amount)])
-            return cbor2.dumps(beneficiary_data)
+            cc_message = cbor2.CBORTag(121, [msg_address, int(amount)])
+            return self.to_indefinite_cbor(cc_message)
 
     def send(self, private_key, plutus_data, gas_limit=300000):
         account = self.w3.eth.account.from_key(private_key)
