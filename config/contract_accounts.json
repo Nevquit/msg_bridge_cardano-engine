@@ -1,8 +1,8 @@
 {
     "preprod": {
         "cardano": {
-            "outbound_demo": "addr_test1wzuh2amrxkr23ft08wuasdxnu9czcqshswzx076ztf5h9hgm2cgcz",
-            "inbound_demo": "addr_test1wp358tkwhux3d2ggus9xkz92mncv6qe3zanfepn6q6tyevg4cdrup",
+            "outbound_demo": "addr_test1wzu6ldpnxd7gdc0h5fyrt53utrk6ynudl6w304wc2sh7u9c3vl5le",
+            "inbound_demo": "addr_test1wqzjepm5l3jepgqv42h292u56l5fcsuz8q6j6qtwyvldusq4qmy4n",
             "xport": "addr_test1wp06e00266a0804446006600400240024466e0000520020",
             "outbound_token_policy": "2f5cbb5da5f1b6df0ce7263707c75e9d7bc024945b97c6117a7daa0c",
             "inbound_token_policy": "f9b4431f11b4029a9a020496e5bf851b2bf13c4cb37a42a4094db743",

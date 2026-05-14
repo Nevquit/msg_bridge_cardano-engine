@@ -22,7 +22,7 @@ from utility.interaction_utils import (
     get_network, get_direction, get_case_file,
     get_cardano_wallet_info, get_evm_wallet_info, get_confirmed_address
 )
-from sendtransactions.cardano_msg import cardano_to_evm_msg, consume_inbound_utxo
+from sendtransactions.cardano_msg import cardano_to_evm_msg
 from sendtransactions.evm_msg import Erc20TokenRemote
 
 def check_wallet_coverage(case_file, direction):
@@ -46,7 +46,7 @@ def main_menu(direction, case_file, network):
     try:
         asset_preparer = PrepareAssets(network)
     except Exception as e:
-        print(f"❌ Error: Could not initialize backend: {e}")
+        print(f"❌ Error: Could not initialize backend (likely missing API keys or no internet): {e}")
         sys.exit(1)
 
     try:
@@ -66,11 +66,9 @@ def main_menu(direction, case_file, network):
         print(f"2. 🔍 Check {target_name} Balances")
         print(f"3. 💸 Distribute Funds ({target_name})")
         print("4. 🚀 Run Transactions")
-        if not is_cardano: # EVM -> Cardano direction
-            print("5. 📥 Consume Cardano Inbound UTXO")
-        print("6. 🧹 Sweep Assets")
-        print("7. 🔙 Change Direction/Case")
-        print("8. 🚪 Exit")
+        print("5. 🧹 Sweep Assets")
+        print("6. 🔙 Change Direction/Case")
+        print("7. 🚪 Exit")
         print("="*50)
         choice = input("👉 Choice: ").strip()
 
@@ -104,10 +102,7 @@ def main_menu(direction, case_file, network):
                 else:
                     run_evm_to_cardano(case_file, network)
 
-        elif choice == '5' and not is_cardano:
-            run_consume_utxo(network, asset_preparer.cardano_context)
-
-        elif choice == '6':
+        elif choice == '5':
             dest_addr = get_confirmed_address(f"👉 Enter Destination {target_name} Address: ")
             if is_cardano:
                 info = get_cardano_wallet_info()
@@ -116,8 +111,8 @@ def main_menu(direction, case_file, network):
                 info = get_evm_wallet_info()
                 if info: asset_preparer.sweep_evm_assets(dest_addr, info[:3])
 
-        elif choice == '7': return
-        elif choice == '8': sys.exit(0)
+        elif choice == '6': return
+        elif choice == '7': sys.exit(0)
 
 def run_cardano_to_evm(case_file, network, context):
     info = get_cardano_wallet_info()
@@ -185,49 +180,14 @@ def run_evm_to_cardano(case_file, network):
         if tx_hash: print(f"  ✅ Success! Hash: {tx_hash}")
         else: print(f"  ❌ Error: {err}")
 
-def run_consume_utxo(network, context):
-    info = get_cardano_wallet_info()
-    if not info:
-        print("❌ Error: Wallets not created yet.")
-        return
-    _, _, batch_wallets, _ = info
-
-    with open('config/contract_accounts.json', 'r') as f:
-        conf = json.load(f)[network]
-        con_c = conf['cardano']
-        evm_token_home = conf['evm']['token_home']
-
-    print("\n--- Cardano Inbound UTXO Consumption ---")
-    tx_hash = input("👉 Enter UTXO TX Hash: ").strip()
-    try:
-        tx_index = int(input("👉 Enter UTXO Index: ").strip())
-    except:
-        print("❌ Invalid Index.")
-        return
-
-    wallet = batch_wallets[0]
-    print(f"🚀 Attempting to consume using wallet {wallet['address'][:10]}...")
-
-    res, err = consume_inbound_utxo(
-        context, wallet['private_key'], wallet['address'], tx_hash, tx_index,
-        con_c['inbound_demo'],
-        con_c['inbound_demo_cbor'],
-        con_c['inbound_token_cbor'],
-        con_c['demo_token_cbor'],
-        con_c['demo_token_policy'],
-        evm_token_home
-    )
-    if res: print(f"✅ Success! TX ID: {res}")
-    else: print(f"❌ Error: {err}")
-
 def run():
-    print("\n👋 Welcome to Cardano-EVM XPort Bridge Runner")
+    print("👋 Welcome to Cardano-EVM XPort Bridge Runner")
     network = get_network()
     while True:
         direction = get_direction()
         case_file = get_case_file(direction)
         if not case_file:
-            print("❌ No CSV files found in testcases directory.")
+            print("❌ No CSV files found.")
             continue
         main_menu(direction, case_file, network)
 
