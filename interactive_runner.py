@@ -204,7 +204,18 @@ def run_consume_utxo(network, context):
     wallet = batch_wallets[0]
     print(f"🚀 Attempting to consume using wallet {wallet['address'][:10]}...")
 
-    res, err = consume_inbound_utxo(context, wallet['private_key'], tx_hash, tx_index, contracts['inbound_demo'])
+    with open('config/rpc.json', 'r') as fr:
+        evm_contract_addr = json.load(fr)['evm'][network].get('contract_address', '0xd6Ed4F1F50Cae0c5c7F514F3D0B1220c4a78F71d')
+
+    res, err = consume_inbound_utxo(
+        context, wallet['private_key'], tx_hash, tx_index,
+        contracts['inbound_demo'],
+        contracts['inbound_demo_cbor'],
+        contracts['inbound_token_cbor'],
+        contracts['demo_token_cbor'],
+        contracts['demo_token_policy'],
+        evm_contract_addr
+    )
     if res:
         print(f"✅ Success! TX ID: {res}")
     else:

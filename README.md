@@ -146,7 +146,11 @@ sequenceDiagram
     - **Check Balances**: Verifies native token balances for all generated wallets.
     - **Distribute Funds**: Sends ADA/WAN from the main wallet to batch wallets.
     - **Run Transactions**: Executes the cross-chain transactions based on the selected CSV.
-    - **Consume Cardano Inbound UTXO**: (For EVM -> Cardano) Allows manual consumption of the UTXO locked in the Inbound script on Cardano. Requires the UTXO TX Hash and Index.
+    - **Consume Cardano Inbound UTXO**: (For EVM -> Cardano) Allows manual consumption of the UTXO locked in the Inbound script on Cardano.
+        1. Select Option 5.
+        2. Enter the Cardano TX Hash where the message is locked.
+        3. Enter the Output Index (usually 0).
+        4. The tool will automatically use the first batch wallet to provide collateral and spend the UTXO using the `InboundDemo` Plutus script and redeemer.
 
 ## Test Case Format
 
