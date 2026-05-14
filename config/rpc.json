@@ -1,18 +1,10 @@
 {
-    "cardano": {
-        "preprod": {
-            "network": "preprod"
-        },
-        "mainnet": {
-            "network": "mainnet"
-        }
-    },
     "evm": {
         "preprod": {
             "url": "https://gwan-ssl.wandevs.org:46891/"
         },
         "mainnet": {
-            "url": "https://gwan-ssl.wandevs.org:46891/"
+            "url": "https://gwan-ssl.wanchain.org"
         }
     }
 }
