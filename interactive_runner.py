@@ -137,6 +137,7 @@ def run_cardano_to_evm(case_file, network, context):
         tx_id, err = cardano_to_evm_msg(
             context,
             wallet['private_key'],
+            wallet['address'],
             case['to_address'],
             case['amount_raw'],
             contracts['outbound_demo'],
@@ -208,7 +209,7 @@ def run_consume_utxo(network, context):
         evm_contract_addr = json.load(fr)['evm'][network].get('contract_address', '0xd6Ed4F1F50Cae0c5c7F514F3D0B1220c4a78F71d')
 
     res, err = consume_inbound_utxo(
-        context, wallet['private_key'], tx_hash, tx_index,
+        context, wallet['private_key'], wallet['address'], tx_hash, tx_index,
         contracts['inbound_demo'],
         contracts['inbound_demo_cbor'],
         contracts['inbound_token_cbor'],

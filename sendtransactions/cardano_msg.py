@@ -9,7 +9,7 @@ from pycardano import (
 from pycardano import PlutusData, Datum, RawPlutusData
 import cbor2
 
-def cardano_to_evm_msg(context, sender_sk_hex, target_address_evm, amount, outbound_demo_addr, outbound_token_policy, demo_token_policy=None, demo_token_name=None):
+def cardano_to_evm_msg(context, sender_sk_hex, sender_addr_str, target_address_evm, amount, outbound_demo_addr, outbound_token_policy, demo_token_policy=None, demo_token_name=None):
     """
     Builds and submits a transaction to initiate a Cardano -> EVM cross-chain message.
     Following XPort protocol:
@@ -22,7 +22,8 @@ def cardano_to_evm_msg(context, sender_sk_hex, target_address_evm, amount, outbo
         payment_signing_key = PaymentExtendedSigningKey.from_primitive(sk_bytes)
     else:
         payment_signing_key = PaymentSigningKey.from_primitive(sk_bytes)
-    sender_addr = Address(payment_signing_key.to_verification_key().hash(), network=context.network)
+
+    sender_addr = Address.from_primitive(sender_addr_str)
 
     # Construct BeneficiaryData datum using Indefinite-length CBOR tags
     try:
@@ -87,7 +88,7 @@ def cardano_to_evm_msg(context, sender_sk_hex, target_address_evm, amount, outbo
 
     return signed_tx.id, None
 
-def consume_inbound_utxo(context, sender_sk_hex, tx_hash, tx_index, script_addr,
+def consume_inbound_utxo(context, sender_sk_hex, sender_addr_str, tx_hash, tx_index, script_addr,
                          inbound_demo_cbor, inbound_token_cbor, demo_token_cbor,
                          demo_token_policy, evm_contract_addr):
     """
@@ -104,10 +105,9 @@ def consume_inbound_utxo(context, sender_sk_hex, tx_hash, tx_index, script_addr,
     else:
         payment_signing_key = PaymentSigningKey.from_primitive(sk_bytes)
 
-    sender_addr = Address(payment_signing_key.to_verification_key().hash(), network=context.network)
+    sender_addr = Address.from_primitive(sender_addr_str)
 
     # 1. Fetch the target UTXO and its datum
-    target_input = TransactionInput.from_primitive({"transaction_id": tx_hash, "index": tx_index})
     utxos = context.utxos(script_addr)
     target_utxo = None
     for u in utxos:
@@ -164,9 +164,7 @@ def consume_inbound_utxo(context, sender_sk_hex, tx_hash, tx_index, script_addr,
     inbound_token_script = PlutusV2Script(bytes.fromhex(inbound_token_cbor))
     demo_token_script = PlutusV2Script(bytes.fromhex(demo_token_cbor))
 
-    # Find InboundToken Asset Name and Policy
-    inbound_token_policy_id = PolicyId.from_primitive(AssetName.from_hex(inbound_token_cbor).payload.hex()[:56]) # Placeholder
-    # Extract from UTXO
+    # Extract InboundToken from UTXO
     it_policy = None
     it_name = None
     it_qty = 0
@@ -177,11 +175,20 @@ def consume_inbound_utxo(context, sender_sk_hex, tx_hash, tx_index, script_addr,
             it_qty = q
             break
 
-    # Burn InboundToken
-    tx_builder.mint = MultiAsset({
-        it_policy: Asset({it_name: -it_qty}),
-        PolicyId.from_primitive(demo_token_policy): Asset({AssetName.from_hex("44656d6f546f6b656e"): int(amount)})
-    })
+    # Burn InboundToken and Mint DemoToken
+    demo_token_name_bytes = bytes.fromhex("44656d6f546f6b656e")
+    demo_policy_id = PolicyId.from_primitive(demo_token_policy)
+
+    mint_assets = MultiAsset()
+    # 1. Burn InboundToken
+    if it_policy not in mint_assets: mint_assets[it_policy] = Asset()
+    mint_assets[it_policy][it_name] = -it_qty
+
+    # 2. Mint DemoToken
+    if demo_policy_id not in mint_assets: mint_assets[demo_policy_id] = Asset()
+    mint_assets[demo_policy_id][AssetName(demo_token_name_bytes)] = int(amount)
+
+    tx_builder.mint = mint_assets
 
     # Add witnesses for minting
     tx_builder.add_minting_script(inbound_token_script, Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [])))))
@@ -189,7 +196,7 @@ def consume_inbound_utxo(context, sender_sk_hex, tx_hash, tx_index, script_addr,
 
     # Send DemoToken to receiver
     demo_val = Value(coin=2000000, multi_asset=MultiAsset({
-        PolicyId.from_primitive(demo_token_policy): Asset({AssetName.from_hex("44656d6f546f6b656e"): int(amount)})
+        demo_policy_id: Asset({AssetName(demo_token_name_bytes): int(amount)})
     }))
     tx_builder.add_output(TransactionOutput(target_receiver, amount=demo_val))
 
