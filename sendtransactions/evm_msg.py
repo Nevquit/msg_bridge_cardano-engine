@@ -2,6 +2,7 @@ from web3 import Web3
 import json
 from pycardano import Address as CardanoAddress
 import cbor2
+from utility.cbor_utils import to_indefinite_cbor
 
 class Erc20TokenRemote:
     def __init__(self, node_url, token_home_addr, abi_path):
@@ -10,21 +11,6 @@ class Erc20TokenRemote:
             abi = json.load(f)
             if 'abi' in abi: abi = abi['abi']
         self.contract = self.w3.eth.contract(address=token_home_addr, abi=abi)
-
-    def to_indefinite_cbor(self, obj):
-        if isinstance(obj, cbor2.CBORTag):
-            res = b'\xd8' + bytes([obj.tag]) + b'\x9f'
-            if isinstance(obj.value, list):
-                for item in obj.value: res += self.to_indefinite_cbor(item)
-            else: res += self.to_indefinite_cbor(obj.value)
-            res += b'\xff'
-            return res
-        elif isinstance(obj, list):
-            res = b'\x9f'
-            for item in obj: res += self.to_indefinite_cbor(item)
-            res += b'\xff'
-            return res
-        return cbor2.dumps(obj)
 
     def encode_plutus_data(self, target_cardano_addr, amount):
         try:
@@ -39,11 +25,11 @@ class Erc20TokenRemote:
             mesh_address = cbor2.CBORTag(121, [p_cred, s_cred])
             msg_address = cbor2.CBORTag(122, [mesh_address])
             cc_message = cbor2.CBORTag(121, [msg_address, int(amount)])
-            return self.to_indefinite_cbor(cc_message)
+            return to_indefinite_cbor(cc_message)
         except:
             msg_address = cbor2.CBORTag(121, [target_cardano_addr.encode('utf-8')])
             cc_message = cbor2.CBORTag(121, [msg_address, int(amount)])
-            return self.to_indefinite_cbor(cc_message)
+            return to_indefinite_cbor(cc_message)
 
     def approve(self, private_key, token_addr, spender_addr, amount, gas_limit=100000):
         account = self.w3.eth.account.from_key(private_key)
