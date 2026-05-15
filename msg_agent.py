@@ -119,10 +119,13 @@ class MsgAgent:
         if not collateral: return
         txb.collaterals.append(collateral)
 
+        # Redeemer: conStr0([burn_policy, burn_token_name, xport, remoteContract])
+        # xport is an Address structure in the TS redeemer
+        xport_plutus_addr = self.get_plutus_address(self.contracts['xport'])
         redeemer_data = cbor2.CBORTag(121, [
             bytes.fromhex(self.contracts['demo_token_policy']),
             self.demo_name.payload,
-            self.get_plutus_address(self.contracts['xport']),
+            xport_plutus_addr,
             bytes.fromhex(self.evm_token_home.replace('0x','').lower())
         ])
         txb.add_script_input(utxo, script=PlutusV2Script(bytes.fromhex(self.contracts['outbound_demo_cbor'])), redeemer=Redeemer(RawPlutusData(to_indefinite_cbor(redeemer_data))))
@@ -145,12 +148,16 @@ class MsgAgent:
 
     def run(self):
         if not os.path.exists("current_cardano_wallets.json"): return print("❌ No wallets.")
-        with open("current_cardano_wallets.json", "r") as f: wallet = json.load(f)[0]['batch_wallets'][0]
+        with open("current_cardano_wallets.json", "r") as f:
+            wallets = json.load(f)[0]['batch_wallets']
+            inbound_wallet = wallets[0] # Index 1
+            outbound_wallet = wallets[1] # Index 2
+
         print(f"🚀 Msg Agent Started ({self.network_name}). Polling scripts...")
         while True:
             try:
-                self.process_inbound(wallet)
-                self.process_outbound(wallet)
+                self.process_inbound(inbound_wallet)
+                self.process_outbound(outbound_wallet)
                 time.sleep(15)
             except KeyboardInterrupt: break
             except Exception as e: print(f"⚠️ Agent Error: {e}"); time.sleep(10)
