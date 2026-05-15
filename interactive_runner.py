@@ -81,7 +81,7 @@ def main_menu(direction, case_file, network):
             if check_wallet_coverage(case_file, direction):
                 if is_cardano:
                     info = get_cardano_wallet_info()
-                    asset_preparer.check_all_cardano_balances(case_file, info[:3])
+                    asset_preparer.check_all_cardano_balances(case_file, info)
                 else:
                     info = get_evm_wallet_info()
                     asset_preparer.check_all_evm_balances(case_file, info[:3])
@@ -90,7 +90,7 @@ def main_menu(direction, case_file, network):
             if check_wallet_coverage(case_file, direction):
                 if is_cardano:
                     info = get_cardano_wallet_info()
-                    asset_preparer.distribute_cardano_funds(case_file, info[:3])
+                    asset_preparer.distribute_cardano_funds(case_file, info)
                 else:
                     info = get_evm_wallet_info()
                     asset_preparer.distribute_evm_funds(case_file, info[:3])
@@ -106,7 +106,7 @@ def main_menu(direction, case_file, network):
             dest_addr = get_confirmed_address(f"👉 Enter Destination {target_name} Address: ")
             if is_cardano:
                 info = get_cardano_wallet_info()
-                if info: asset_preparer.sweep_cardano_assets(dest_addr, info[:3])
+                if info: asset_preparer.sweep_cardano_assets(dest_addr, info)
             else:
                 info = get_evm_wallet_info()
                 if info: asset_preparer.sweep_evm_assets(dest_addr, info[:3])

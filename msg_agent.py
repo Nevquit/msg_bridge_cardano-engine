@@ -149,9 +149,10 @@ class MsgAgent:
     def run(self):
         if not os.path.exists("current_cardano_wallets.json"): return print("❌ No wallets.")
         with open("current_cardano_wallets.json", "r") as f:
-            wallets = json.load(f)[0]['batch_wallets']
-            inbound_wallet = wallets[0] # Index 1
-            outbound_wallet = wallets[1] # Index 2
+            data = json.load(f)[0]
+            redeemers = data.get('redeemer_wallets', data.get('batch_wallets'))
+            inbound_wallet = redeemers[0]
+            outbound_wallet = redeemers[1]
 
         print(f"🚀 Msg Agent Started ({self.network_name}). Polling scripts...")
         while True:
