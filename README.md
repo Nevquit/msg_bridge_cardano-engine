@@ -20,6 +20,22 @@ Comprehensive Python suite for cross-chain message transactions between Cardano 
 
 ## 📖 Usage Guide
 
+### 0. Wallet Preparation
+The XPort system requires three distinct functional accounts. This tool simplifies preparation by deriving all roles deterministically from a **single 24-word mnemonic** (BIP-1852 for Cardano, BIP-44 for EVM):
+
+| Role | Wallet Index | Usage |
+| :--- | :--- | :--- |
+| **User** | Index 0 (Main) | Initiates transfers (Options 4 in Runner) |
+| **Inbound Agent** | Index 1 (Batch 1) | Automates Inbound settlements (EVM -> Cardano) |
+| **Outbound Agent** | Index 2 (Batch 2) | Automates Outbound relays (Cardano -> EVM) |
+
+**Steps to Prepare:**
+1. Run `python interactive_runner.py`.
+2. Select **Option 1 (Create Wallets)**.
+3. Enter your existing 24-word mnemonic or press Enter to generate a new one.
+4. The tool automatically derives and saves the User and Agent credentials into `current_cardano_wallets.json` and `current_evm_wallets.json`.
+5. Use **Option 2/3** in the Runner to check balances and distribute test coins (ADA/WAN/Tokens) to these accounts.
+
 ### 1. Interactive Runner (Initiating Transfers)
 Use this tool to create wallets, distribute funds, and send bridge messages.
 ```bash
