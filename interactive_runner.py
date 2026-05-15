@@ -46,7 +46,7 @@ def main_menu(direction, case_file, network):
     try:
         asset_preparer = PrepareAssets(network)
     except Exception as e:
-        print(f"❌ Error: Could not initialize backend (likely missing API keys or no internet): {e}")
+        print(f"❌ Error: Could not initialize backend: {e}")
         sys.exit(1)
 
     try:
@@ -181,7 +181,7 @@ def run_evm_to_cardano(case_file, network):
         else: print(f"  ❌ Error: {err}")
 
 def run():
-    print("👋 Welcome to Cardano-EVM XPort Bridge Runner")
+    print("\n👋 Welcome to Cardano-EVM XPort Bridge Runner")
     network = get_network()
     while True:
         direction = get_direction()

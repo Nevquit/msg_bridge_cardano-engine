@@ -1,25 +1,45 @@
 # Cardano-EVM XPort Bridge Runner
 
-Interactive CLI for cross-chain transactions between Cardano (Preprod) and EVM (Wanchain Testnet).
+Comprehensive Python suite for cross-chain message transactions between Cardano (Preprod) and EVM (Wanchain Testnet) using the XPort protocol.
 
-## Features
-- **Deterministic HD Wallets**: Derives both Cardano (BIP-1852) and EVM (BIP-44) wallets from a single 24-word mnemonic.
-- **Interactive Runner**: Modular CLI for balance checking, fund distribution, and transaction initiation.
-- **Protocol-Correct Encoding**: specialized CBOR indefinite-length encoding for Plutus scripts.
-- **Autonomous Msg Agent**: Standalone service to monitor and settle Cardano-side message processing.
+## 🚀 Features
+- **Deterministic HD Wallets**: Derive both Cardano (BIP-1852) and EVM (BIP-44) wallets from a single 24-word mnemonic.
+- **Interactive CLI Engine**: Manage wallets, check balances, and initiate cross-chain transfers via a menu-driven interface.
+- **Autonomous Msg Agent**: Standalone service to monitor script addresses and automatically settle Cardano-side bridge settlements.
+- **Protocol Excellence**: Custom CBOR recursive encoder for indefinite-length nesting required by Plutus scripts.
 
-## Setup
-1. `pip install -r requirements.txt`
-2. Create `.env` with `YOUR_BLOCKFROST_PROJECT_ID`.
+## 🛠️ Setup
+1. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. **Configure Environment**: Create a `.env` file and add your Blockfrost API key:
+   ```env
+   YOUR_BLOCKFROST_PROJECT_ID=your_id_here
+   ```
 
-## Msg Agent Service
-The Msg Agent is a background service that monitors the Cardano network for cross-chain messages.
+## 📖 Usage Guide
 
-### Starting the Agent
+### 1. Interactive Runner (Initiating Transfers)
+Use this tool to create wallets, distribute funds, and send bridge messages.
+```bash
+python interactive_runner.py
+```
+- **Option 1**: Create or load wallets from a mnemonic.
+- **Option 2/3**: Diagnostic tools to check and distribute ADA/WAN/Tokens.
+- **Option 4**: Execute transfers based on CSV test cases.
+
+### 2. Msg Agent Service (Autonomous Settlement)
+Run this service in the background to automatically process incoming/outgoing bridge messages on Cardano.
 ```bash
 python msg_agent.py preprod
 ```
+- **Inbound**: Monitors `InboundDemo`, burns `InboundToken`, and mints `DemoToken` to the receiver.
+- **Outbound**: Monitors `OutboundDemo`, burns `DemoToken`, and relays to `XPort`.
 
-### Functions
-- **Inbound Processing**: Monitors the `InboundDemo` script. When a cross-chain message is detected (minted by XPort), the agent automatically consumes the UTXO, burns the `InboundToken`, and mints the `DemoToken` to the receiver.
-- **Outbound Monitoring**: (Currently Inbound focused) Detects outbound requests to be relayed to EVM.
+## 📂 Project Structure
+- `interactive_runner.py`: CLI entry point.
+- `msg_agent.py`: Autonomous background service.
+- `sendtransactions/`: Transaction building logic for Cardano & EVM.
+- `utility/`: Wallet HD derivation and asset management backend.
+- `config/`: RPC settings, ABIs, and verified contract addresses.

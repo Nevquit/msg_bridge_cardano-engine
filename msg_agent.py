@@ -1,17 +1,6 @@
-import time
-import os
-import json
-import warnings
+import time, os, json, warnings
 from dotenv import load_dotenv
-
-# Suppress Deprecation Warnings
 warnings.filterwarnings("ignore")
-try:
-    from cryptography.utils import CryptographyDeprecationWarning
-    warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
-except ImportError:
-    pass
-
 load_dotenv()
 from pycardano import (
     BlockFrostChainContext, Network, Address,
@@ -21,6 +10,7 @@ from pycardano import (
     PaymentExtendedSigningKey, PaymentSigningKey
 )
 import cbor2
+from utility.cbor_utils import to_indefinite_cbor
 
 def get_signer(sk_hex):
     sk_bytes = bytes.fromhex(sk_hex)
@@ -31,153 +21,140 @@ class MsgAgent:
     def __init__(self, network_name):
         self.network_name = network_name
         self.network = Network.MAINNET if network_name == 'mainnet' else Network.TESTNET
-        bf_id = os.getenv("YOUR_BLOCKFROST_PROJECT_ID")
-        self.context = BlockFrostChainContext(bf_id, self.network)
-
+        self.context = BlockFrostChainContext(os.getenv("YOUR_BLOCKFROST_PROJECT_ID"), self.network)
         with open('config/contract_accounts.json', 'r') as f:
-            self.contracts = json.load(f)[network_name]['cardano']
+            conf = json.load(f)[network_name]
+            self.contracts = conf['cardano']
+            self.evm_token_home = conf['evm']['token_home']
 
-        with open('config/rpc.json', 'r') as f:
-            self.rpc = json.load(f)
-            self.evm_token_home = self.rpc['evm'][network_name].get('token_home', '0xd6Ed4F1F50Cae0c5c7F514F3D0B1220c4a78F71d')
+        self.demo_policy = PolicyId.from_primitive(self.contracts['demo_token_policy'])
+        self.demo_name = AssetName.from_primitive(bytes.fromhex(self.contracts['demo_token_name']))
+        self.inbound_policy = PolicyId.from_primitive(self.contracts['inbound_token_policy'])
+        self.outbound_policy = PolicyId.from_primitive(self.contracts['outbound_token_policy'])
+        self.outbound_token_name = AssetName.from_primitive(b"OutboundTokenCoin")
+
+    def get_plutus_address(self, addr_str):
+        """Converts Bech32 address to Plutus Address structure for CBOR."""
+        addr = Address.from_primitive(addr_str)
+        p_cred = cbor2.CBORTag(121, [addr.payment_part.to_primitive()])
+        if addr.staking_part:
+            s_cred = cbor2.CBORTag(121, [cbor2.CBORTag(121, [cbor2.CBORTag(121, [addr.staking_part.to_primitive()])])])
+        else:
+            s_cred = cbor2.CBORTag(122, [])
+        return cbor2.CBORTag(121, [p_cred, s_cred])
 
     def process_inbound(self, wallet):
-        script_addr = self.contracts['inbound_demo']
-        print(f"🔍 Monitoring Inbound: {script_addr}")
-        utxos = self.context.utxos(script_addr)
-        for utxo in utxos:
-            if not utxo.output.datum: continue
-            print(f"📦 Found Inbound UTXO: {utxo.input}")
+        print(f"🔍 Monitoring Inbound: {self.contracts['inbound_demo']}")
+        uts = self.context.utxos(self.contracts['inbound_demo'])
+        for u in uts:
+            if not u.output.datum: continue
             try:
-                datum_obj = cbor2.loads(utxo.output.datum.cbor)
+                datum_obj = cbor2.loads(u.output.datum.to_cbor())
                 inner_call_data = datum_obj.value[6].value[1]
                 beneficiary = cbor2.loads(inner_call_data)
                 amount = beneficiary.value[1]
+
                 # Reconstruct receiver address
                 receiver_tag = beneficiary.value[0]
                 if isinstance(receiver_tag, cbor2.CBORTag) and receiver_tag.tag == 122:
-                    # Cardano Address: Tag 121 [ p_cred, s_cred ]
-                    addr_data = receiver_tag.value[0]
-                    p_hash = addr_data.value[0].value[0]
-                    s_hash = None
-                    if isinstance(addr_data.value[1], cbor2.CBORTag) and addr_data.value[1].tag == 121:
-                        s_hash = addr_data.value[1].value[0].value[0].value[0]
+                    addr_fields = receiver_tag.value[0].value # [p_cred, s_cred]
+                    p_hash = addr_fields[0].value[0]
+                    s_hash = addr_fields[1].value[0].value[0].value[0] if isinstance(addr_fields[1], cbor2.CBORTag) and addr_fields[1].tag == 121 else None
                     receiver = Address(p_hash, s_hash, network=self.network)
-                else:
-                    receiver = Address.from_primitive(wallet['address'])
-
-                self.execute_inbound_tx(utxo, wallet, receiver, amount)
-            except Exception as e: print(f"  ❌ Error: {e}")
-
-    def process_outbound(self, wallet):
-        script_addr = self.contracts['outbound_demo']
-        print(f"🔍 Monitoring Outbound: {script_addr}")
-        utxos = self.context.utxos(script_addr)
-        for utxo in utxos:
-            if not utxo.output.datum: continue
-            print(f"📦 Found Outbound UTXO: {utxo.input}")
-            try:
-                # TS: const beneficiary = getBeneficiaryFromCbor(utxo.output.plutusData);
-                datum_obj = cbor2.loads(utxo.output.datum.cbor)
-                amount = datum_obj.value[1]
-                self.execute_outbound_tx(utxo, wallet, amount)
-            except Exception as e: print(f"  ❌ Error: {e}")
+                else: receiver = Address.from_primitive(wallet['address'])
+                self.execute_inbound_tx(u, wallet, receiver, amount)
+            except Exception as e: print(f"  ❌ Inbound Parse Error: {e}")
 
     def execute_inbound_tx(self, utxo, wallet, receiver, amount):
         sk = get_signer(wallet['private_key'])
         sender_addr = Address.from_primitive(wallet['address'])
+        txb = TransactionBuilder(self.context)
+        txb.add_input_address(sender_addr)
+        collateral = next((u for u in self.context.utxos(wallet['address']) if u.output.amount.coin > 5000000), None)
+        if not collateral: return
+        txb.collaterals.append(collateral)
 
-        tx_builder = TransactionBuilder(self.context)
-        tx_builder.add_input_address(sender_addr)
-
-        # Collateral
-        collateral = next((u for u in self.context.utxos(str(sender_addr)) if u.output.amount.coin > 5000000), None)
-        if not collateral:
-            print("  ❌ No collateral found.")
-            return
-        tx_builder.collaterals.append(collateral)
-
-        # Script Input
-        inbound_script = PlutusV2Script(bytes.fromhex(self.contracts['inbound_demo_cbor']))
-        redeemer = Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [
+        redeemer = Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [
             bytes.fromhex(self.contracts['demo_token_policy']),
-            bytes.fromhex(self.evm_token_home.replace('0x',''))
+            bytes.fromhex(self.evm_token_home.replace('0x','').lower())
         ]))))
-        tx_builder.add_script_input(utxo, script=inbound_script, redeemer=redeemer)
+        txb.add_script_input(utxo, script=PlutusV2Script(bytes.fromhex(self.contracts['inbound_demo_cbor'])), redeemer=redeemer)
 
-        # Mint/Burn
-        it_policy, it_name, it_qty = None, None, 0
+        it_name = None
         for p, assets in utxo.output.amount.multi_asset.items():
-            it_policy, it_name, it_qty = p, *list(assets.items())[0]
-            break
-
-        demo_policy = PolicyId.from_primitive(self.contracts['demo_token_policy'])
-        demo_name = AssetName.from_primitive(bytes.fromhex(self.contracts['demo_token_name']))
+            if p == self.inbound_policy: it_name = list(assets.keys())[0]; break
 
         mint_assets = MultiAsset()
-        mint_assets[it_policy] = Asset({it_name: -it_qty})
-        mint_assets[demo_policy] = Asset({demo_name: int(amount)})
-        tx_builder.mint = mint_assets
+        if it_name: mint_assets[self.inbound_policy] = Asset({it_name: -1})
+        mint_assets[self.demo_policy] = Asset({self.demo_name: int(amount)})
+        txb.mint = mint_assets
 
-        tx_builder.add_minting_script(PlutusV2Script(bytes.fromhex(self.contracts['inbound_token_cbor'])), Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [])))))
-        tx_builder.add_minting_script(PlutusV2Script(bytes.fromhex(self.contracts['demo_token_cbor'])), Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [])))))
-
-        # Output
-        val = Value(coin=2000000, multi_asset=MultiAsset({demo_policy: Asset({demo_name: int(amount)})}))
-        tx_builder.add_output(TransactionOutput(receiver, amount=val))
+        txb.add_minting_script(PlutusV2Script(bytes.fromhex(self.contracts['inbound_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
+        txb.add_minting_script(PlutusV2Script(bytes.fromhex(self.contracts['demo_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
+        txb.add_output(TransactionOutput(receiver, amount=Value(coin=2000000, multi_asset=MultiAsset({self.demo_policy: Asset({self.demo_name: int(amount)})})) ))
 
         try:
-            signed_tx = tx_builder.build_and_sign([sk], change_address=sender_addr)
-            self.context.submit_tx(signed_tx.to_cbor())
-            print(f"  ✅ Inbound TX Success: {signed_tx.id}")
-        except Exception as e:
-            print(f"  ❌ Inbound TX Failed: {e}")
+            stx = txb.build_and_sign([sk], change_address=sender_addr)
+            self.context.submit_tx(stx.to_cbor())
+            print(f"✅ Inbound Processed: {stx.id}")
+        except Exception as e: print(f"❌ Inbound Error: {e}")
+
+    def process_outbound(self, wallet):
+        print(f"🔍 Monitoring Outbound: {self.contracts['outbound_demo']}")
+        uts = self.context.utxos(self.contracts['outbound_demo'])
+        for u in uts:
+            if not u.output.datum: continue
+            try:
+                datum_obj = cbor2.loads(u.output.datum.to_cbor())
+                amount = datum_obj.value[1]
+                self.execute_outbound_tx(u, wallet, amount)
+            except Exception as e: print(f"  ❌ Outbound Parse Error: {e}")
 
     def execute_outbound_tx(self, utxo, wallet, amount):
         sk = get_signer(wallet['private_key'])
         sender_addr = Address.from_primitive(wallet['address'])
-        tx_builder = TransactionBuilder(self.context)
-        tx_builder.add_input_address(sender_addr)
-
-        sender_utxos = self.context.utxos(str(sender_addr))
-        collateral = next((u for u in sender_utxos if u.output.amount.coin > 5000000), None)
+        txb = TransactionBuilder(self.context)
+        txb.add_input_address(sender_addr)
+        collateral = next((u for u in self.context.utxos(wallet['address']) if u.output.amount.coin > 5000000), None)
         if not collateral: return
-        tx_builder.collaterals.append(collateral)
+        txb.collaterals.append(collateral)
 
-        outbound_script = PlutusV2Script(bytes.fromhex(self.contracts['inbound_demo_cbor'])) # Outbound demo uses same base logic in demo
-        # TS: const outboundRedeemer = mConStr0([demoTokenPolicy, demoTokenName, xportAddress, evmContractAddress]);
-        redeemer = Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [
+        redeemer_data = cbor2.CBORTag(121, [
             bytes.fromhex(self.contracts['demo_token_policy']),
-            bytes.fromhex(self.contracts['demo_token_name']),
-            bytes.fromhex("00" * 28), # Mock XPort
-            bytes.fromhex(self.evm_token_home.replace('0x',''))
-        ]))))
-        tx_builder.add_script_input(utxo, script=outbound_script, redeemer=redeemer)
+            self.demo_name.payload,
+            self.get_plutus_address(self.contracts['xport']),
+            bytes.fromhex(self.evm_token_home.replace('0x','').lower())
+        ])
+        txb.add_script_input(utxo, script=PlutusV2Script(bytes.fromhex(self.contracts['outbound_demo_cbor'])), redeemer=Redeemer(RawPlutusData(to_indefinite_cbor(redeemer_data))))
+
+        mint_assets = MultiAsset()
+        mint_assets[self.demo_policy] = Asset({self.demo_name: -int(amount)})
+        mint_assets[self.outbound_policy] = Asset({self.outbound_token_name: 1})
+        txb.mint = mint_assets
+
+        txb.add_minting_script(PlutusV2Script(bytes.fromhex(self.contracts['demo_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
+        txb.add_minting_script(PlutusV2Script(bytes.fromhex(self.contracts['outbound_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
+
+        txb.add_output(TransactionOutput(Address.from_primitive(self.contracts['xport']), amount=Value(coin=2000000, multi_asset=MultiAsset({self.outbound_policy: Asset({self.outbound_token_name: 1})})), datum=utxo.output.datum))
 
         try:
-            signed_tx = tx_builder.build_and_sign([sk], change_address=sender_addr)
-            self.context.submit_tx(signed_tx.to_cbor())
-            print(f"  ✅ Outbound TX Success: {signed_tx.id}")
-        except Exception as e: print(f"  ❌ Outbound TX Failed: {e}")
+            stx = txb.build_and_sign([sk], change_address=sender_addr)
+            self.context.submit_tx(stx.to_cbor())
+            print(f"✅ Outbound Relayed: {stx.id}")
+        except Exception as e: print(f"❌ Outbound Error: {e}")
 
     def run(self):
-        if not os.path.exists("current_cardano_wallets.json"):
-            print("❌ No wallets found.")
-            return
-        with open("current_cardano_wallets.json", "r") as f:
-            wallet = json.load(f)[0]['batch_wallets'][0]
-        print("🚀 Msg Agent Started.")
+        if not os.path.exists("current_cardano_wallets.json"): return print("❌ No wallets.")
+        with open("current_cardano_wallets.json", "r") as f: wallet = json.load(f)[0]['batch_wallets'][0]
+        print(f"🚀 Msg Agent Started ({self.network_name}). Polling scripts...")
         while True:
             try:
                 self.process_inbound(wallet)
                 self.process_outbound(wallet)
                 time.sleep(15)
             except KeyboardInterrupt: break
-            except Exception as e:
-                print(f"⚠️  Error: {e}")
-                time.sleep(10)
+            except Exception as e: print(f"⚠️ Agent Error: {e}"); time.sleep(10)
 
 if __name__ == "__main__":
     import sys
-    net = sys.argv[1] if len(sys.argv) > 1 else 'preprod'
-    MsgAgent(net).run()
+    MsgAgent(sys.argv[1] if len(sys.argv) > 1 else 'preprod').run()
