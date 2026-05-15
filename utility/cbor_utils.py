@@ -5,6 +5,8 @@ def to_indefinite_cbor(obj):
     Recursive encoder for indefinite-length CBOR structures (9f ... ff)
     with support for Plutus-style Tag (Major Type 6) constructors.
     """
+    if obj is None:
+        return cbor2.dumps(None)
     if isinstance(obj, cbor2.CBORTag):
         # d8 <tag> 9f ... ff
         res = b'\xd8' + bytes([obj.tag]) + b'\x9f'

@@ -45,7 +45,7 @@ class MsgAgent:
 
     def process_inbound(self, wallet):
         print(f"🔍 Monitoring Inbound: {self.contracts['inbound_demo']}")
-        uts = self.context.utxos(self.contracts['inbound_demo'])
+        uts = self.context.utxos(self.contracts['inbound_demo']) or []
         for u in uts:
             if not u.output.datum: continue
             try:
@@ -71,7 +71,7 @@ class MsgAgent:
         sender_addr = Address.from_primitive(wallet['address'])
         txb = TransactionBuilder(self.context)
         txb.add_input_address(sender_addr)
-        collateral = next((u for u in self.context.utxos(wallet['address']) if u.output.amount.coin > 5000000), None)
+        collateral = next((u for u in (self.context.utxos(wallet['address']) or []) if u.output.amount.coin > 5000000), None)
         if not collateral: return
         txb.collaterals.append(collateral)
 
@@ -102,7 +102,7 @@ class MsgAgent:
 
     def process_outbound(self, wallet):
         print(f"🔍 Monitoring Outbound: {self.contracts['outbound_demo']}")
-        uts = self.context.utxos(self.contracts['outbound_demo'])
+        uts = self.context.utxos(self.contracts['outbound_demo']) or []
         for u in uts:
             if not u.output.datum: continue
             try:
@@ -117,7 +117,7 @@ class MsgAgent:
         sender_addr = Address.from_primitive(wallet['address'])
         txb = TransactionBuilder(self.context)
         txb.add_input_address(sender_addr)
-        collateral = next((u for u in self.context.utxos(wallet['address']) if u.output.amount.coin > 5000000), None)
+        collateral = next((u for u in (self.context.utxos(wallet['address']) or []) if u.output.amount.coin > 5000000), None)
         if not collateral: return
         txb.collaterals.append(collateral)
 
