@@ -48,7 +48,16 @@ class PrepareAssets:
 
         main_cardano = derive_cardano(0)
         batch_cardano = [derive_cardano(i) for i in range(1, cardano_count + 1)]
-        with open("current_cardano_wallets.json", "w") as f: json.dump([{"mnemonic": mnemonic_phrase, "main_wallet": main_cardano, "batch_wallets": batch_cardano}], f, indent=4)
+        # Redeemer wallets use indices 100, 101...
+        redeemer_cardano = [derive_cardano(100 + i) for i in range(2)]
+
+        with open("current_cardano_wallets.json", "w") as f:
+            json.dump([{
+                "mnemonic": mnemonic_phrase,
+                "main_wallet": main_cardano,
+                "batch_wallets": batch_cardano,
+                "redeemer_wallets": redeemer_cardano
+            }], f, indent=4)
 
         Account.enable_unaudited_hdwallet_features()
         main_evm_acc = Account.from_mnemonic(mnemonic_phrase, account_path="m/44'/60'/0'/0/0")
@@ -57,7 +66,7 @@ class PrepareAssets:
         print(f"✅ Wallets Generated. (Cardano Batch Count: {cardano_count})")
 
     def check_all_cardano_balances(self, case_file, wallets_info):
-        _, main, batch = wallets_info
+        _, main, batch, redeemers = wallets_info
         cases = pd.read_csv(os.path.join("testcases", "cardano_to_evm", case_file)).to_dict('records')
         with open('config/contract_accounts.json', 'r') as f: contracts = json.load(f)[self.network_name]['cardano']
         policy, token_name = contracts.get('demo_token_policy', ''), contracts.get('demo_token_name', '')
@@ -75,7 +84,11 @@ class PrepareAssets:
         c, t = get_info(main['address'])
         print(f"MAIN (User): {main['address']} | ADA: {c/1000000:.2f} | TOKEN: {t}")
         for i, w in enumerate(batch):
-            role = "Inbound Agent" if i == 0 else "Outbound Agent" if i == 1 else f"Batch {i+1}"
+            c, t = get_info(w['address'])
+            print(f"BATCH {i+1}: {w['address'][:15]}... | ADA: {c/1000000:.2f} | TOKEN: {t}")
+
+        for i, w in enumerate(redeemers):
+            role = "Inbound Agent" if i == 0 else "Outbound Agent"
             c, t = get_info(w['address'])
             print(f"{role}: {w['address'][:15]}... | ADA: {c/1000000:.2f} | TOKEN: {t}")
 
@@ -95,7 +108,7 @@ class PrepareAssets:
             print(f"BATCH {i+1}: {w['address'][:10]} | WAN: {self.w3.from_wei(c, 'ether'):.4f} | TOKEN: {t}")
 
     def distribute_cardano_funds(self, case_file, wallets_info):
-        _, main, batch = wallets_info
+        _, main, batch, redeemers = wallets_info
         cases = pd.read_csv(os.path.join("testcases", "cardano_to_evm", case_file)).to_dict('records')
         with open('config/contract_accounts.json', 'r') as f: contracts = json.load(f)[self.network_name]['cardano']
         sk_bytes = bytes.fromhex(main['private_key'])
@@ -104,11 +117,14 @@ class PrepareAssets:
         tx_builder = TransactionBuilder(self.cardano_context)
         tx_builder.add_input_address(main_addr)
         for i, w in enumerate(batch):
-            # Send at least 10 ADA to Agents for collateral and fees
-            val = Value(coin=10000000)
+            val = Value(coin=2000000)
             if i < len(cases) and contracts.get('demo_token_policy'):
                 val.multi_asset = MultiAsset({PolicyId.from_primitive(contracts['demo_token_policy']): Asset({AssetName.from_primitive(bytes.fromhex(contracts.get('demo_token_name', ''))): int(cases[i]['amount_raw'])})})
             tx_builder.add_output(TransactionOutput(Address.from_primitive(w['address']), amount=val))
+
+        for w in redeemers:
+            # Agents need ADA for collateral and script execution fees
+            tx_builder.add_output(TransactionOutput(Address.from_primitive(w['address']), amount=Value(coin=15000000)))
         stx = tx_builder.build_and_sign([main_sk], change_address=main_addr)
         self.cardano_context.submit_tx(stx.to_cbor())
         print(f"✅ Cardano Distribution submitted: {stx.id}")
@@ -133,9 +149,9 @@ class PrepareAssets:
             print(f"  Sent funds to {w['address'][:10]}")
 
     def sweep_cardano_assets(self, destination_address, wallets_info):
-        _, main, batch = wallets_info
+        _, main, batch, redeemers = wallets_info
         dest_addr = Address.from_primitive(destination_address)
-        for w in [main] + batch:
+        for w in [main] + batch + redeemers:
             uts = self.cardano_context.utxos(w['address'])
             if not uts: continue
             sk_bytes = bytes.fromhex(w['private_key'])
