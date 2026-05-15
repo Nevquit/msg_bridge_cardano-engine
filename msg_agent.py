@@ -49,7 +49,8 @@ class MsgAgent:
         for u in uts:
             if not u.output.datum: continue
             try:
-                datum_obj = cbor2.loads(u.output.datum.to_cbor())
+                datum_bytes = u.output.datum.cbor if hasattr(u.output.datum, "cbor") else u.output.datum.to_cbor()
+                datum_obj = cbor2.loads(datum_bytes)
                 inner_call_data = datum_obj.value[6].value[1]
                 beneficiary = cbor2.loads(inner_call_data)
                 amount = beneficiary.value[1]
@@ -105,7 +106,8 @@ class MsgAgent:
         for u in uts:
             if not u.output.datum: continue
             try:
-                datum_obj = cbor2.loads(u.output.datum.to_cbor())
+                datum_bytes = u.output.datum.cbor if hasattr(u.output.datum, "cbor") else u.output.datum.to_cbor()
+                datum_obj = cbor2.loads(datum_bytes)
                 amount = datum_obj.value[1]
                 self.execute_outbound_tx(u, wallet, amount)
             except Exception as e: print(f"  ❌ Outbound Parse Error: {e}")
