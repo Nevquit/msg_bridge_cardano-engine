@@ -117,7 +117,7 @@ def main_menu(direction, case_file, network):
 def run_cardano_to_evm(case_file, network, context):
     info = get_cardano_wallet_info()
     if not info: return
-    _, _, batch_wallets, _ = info
+    _, _, batch_wallets = info
     cases = pd.read_csv(os.path.join("testcases", "cardano_to_evm", case_file)).to_dict('records')
 
     with open('config/contract_accounts.json', 'r') as f:

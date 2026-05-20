@@ -20,19 +20,13 @@ Comprehensive Python suite for cross-chain message transactions between Cardano 
 ## 📖 Usage Guide
 
 ### 0. Wallet Preparation
-The XPort system utilizes multiple functional accounts. This tool simplifies preparation by deriving all roles deterministically from a **single 24-word mnemonic** (BIP-1852 for Cardano, BIP-44 for EVM):
-
-| Role | Wallet Index | Usage |
-| :--- | :--- | :--- |
-| **User** | Index 0 | Initiates bridge transfers (Option 4 in Runner) |
-| **Inbound Agent** | Index 100 | Autonomous settlement of Inbound messages (msg_agent.py) |
-| **Outbound Agent** | Index 101 | Autonomous relay of Outbound messages (msg_agent.py) |
+This tool simplifies preparation by deriving all user accounts deterministically from a **single 24-word mnemonic** (BIP-1852 for Cardano, BIP-44 for EVM).
 
 **Steps to Prepare:**
 1. Run `python interactive_runner.py`.
 2. Select **Option 1 (Create Wallets)**.
 3. Enter your existing 24-word mnemonic or press Enter to generate a new one.
-4. The tool automatically derives and saves the User and Agent credentials into `current_cardano_wallets.json` and `current_evm_wallets.json`.
+4. The tool automatically derives and saves credentials into `current_cardano_wallets.json` and `current_evm_wallets.json`.
 5. Use **Option 2/3** in the Runner to check balances and distribute test coins (ADA/WAN/Tokens) to these accounts.
 
 ### 1. Interactive Runner (Initiating Transfers)
@@ -43,14 +37,7 @@ python interactive_runner.py
 - **Option 1**: Create or load wallets from a mnemonic.
 - **Option 2/3**: Diagnostic tools to check and distribute ADA/WAN/Tokens.
 - **Option 4**: Execute transfers based on CSV test cases.
-
-### 2. Msg Agent Service (Autonomous Settlement)
-Run this service in the background to automatically process bridge messages on Cardano.
-```bash
-python msg_agent.py preprod
-```
-- **Inbound**: Monitors `InboundDemo`, burns `InboundToken`, and mints `DemoToken` to the receiver.
-- **Outbound**: Monitors `OutboundDemo`, burns `DemoToken`, and relays to `XPort`.
+- **Option 5**: Sweep assets back to a central wallet.
 
 ## 📂 Project Structure
 - `interactive_runner.py`: CLI entry point.
