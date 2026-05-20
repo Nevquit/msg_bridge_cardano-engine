@@ -33,8 +33,8 @@ class PrepareAssets:
     def generate_wallets(self, mnemonic_phrase=None):
         if not mnemonic_phrase: mnemonic_phrase = Mnemonic("english").generate(strength=256)
         wallet_set_id = os.urandom(4).hex()
-        # Ensure at least 3 batch wallets for Agent roles (Index 1, 2, 3...)
-        cardano_count = max(3, self._get_max_cases("cardano_to_evm"))
+        # Ensure enough wallets for test cases
+        cardano_count = max(1, self._get_max_cases("cardano_to_evm"))
         evm_count = self._get_max_cases("evm_to_cardano")
         hd_wallet = HDWallet.from_mnemonic(mnemonic_phrase)
 
@@ -117,7 +117,8 @@ class PrepareAssets:
         tx_builder = TransactionBuilder(self.cardano_context)
         tx_builder.add_input_address(main_addr)
         for i, w in enumerate(batch):
-            val = Value(coin=2000000)
+            # User wallets need ADA for fees and tokens for bridge
+            val = Value(coin=5000000)
             if i < len(cases) and contracts.get('demo_token_policy'):
                 val.multi_asset = MultiAsset({PolicyId.from_primitive(contracts['demo_token_policy']): Asset({AssetName.from_primitive(bytes.fromhex(contracts.get('demo_token_name', ''))): int(cases[i]['amount_raw'])})})
             tx_builder.add_output(TransactionOutput(Address.from_primitive(w['address']), amount=val))
