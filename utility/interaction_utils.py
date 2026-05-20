@@ -30,7 +30,7 @@ def get_evm_wallet_info():
     if not os.path.exists("current_evm_wallets.json"): return None
     with open("current_evm_wallets.json", "r") as f:
         d = json.load(f)[0]
-        return d['mnemonic'], d['main_wallet'], d['batch_wallets'], d.get('wallet_name')
+        return d['mnemonic'], d['main_wallet'], d['batch_wallets']
 
 def get_confirmed_address(prompt):
     while True:

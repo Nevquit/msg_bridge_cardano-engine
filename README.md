@@ -5,7 +5,6 @@ Comprehensive Python suite for cross-chain message transactions between Cardano 
 ## 🚀 Features
 - **Deterministic HD Wallets**: Derive both Cardano (BIP-1852) and EVM (BIP-44) wallets from a single 24-word mnemonic.
 - **Interactive CLI Engine**: Manage wallets, check balances, and initiate cross-chain transfers via a menu-driven interface.
-- **Autonomous Msg Agent**: Standalone service to monitor script addresses and automatically settle Cardano-side bridge settlements.
 - **Protocol Excellence**: Custom CBOR recursive encoder for indefinite-length nesting required by Plutus scripts.
 
 ## 🛠️ Setup
@@ -21,13 +20,13 @@ Comprehensive Python suite for cross-chain message transactions between Cardano 
 ## 📖 Usage Guide
 
 ### 0. Wallet Preparation
-The XPort system requires three distinct functional accounts. This tool simplifies preparation by deriving all roles deterministically from a **single 24-word mnemonic** (BIP-1852 for Cardano, BIP-44 for EVM):
+The XPort system utilizes multiple functional accounts. This tool simplifies preparation by deriving all roles deterministically from a **single 24-word mnemonic** (BIP-1852 for Cardano, BIP-44 for EVM):
 
 | Role | Wallet Index | Usage |
 | :--- | :--- | :--- |
-| **User** | Index 0 (Main) | Initiates transfers (Options 4 in Runner) |
-| **Inbound Agent** | Index 1 (Batch 1) | Automates Inbound settlements (EVM -> Cardano) |
-| **Outbound Agent** | Index 2 (Batch 2) | Automates Outbound relays (Cardano -> EVM) |
+| **User** | Index 0 | Initiates bridge transfers (Option 4 in Runner) |
+| **Inbound Agent** | Index 100 | Autonomous settlement of Inbound messages (msg_agent.py) |
+| **Outbound Agent** | Index 101 | Autonomous relay of Outbound messages (msg_agent.py) |
 
 **Steps to Prepare:**
 1. Run `python interactive_runner.py`.
@@ -46,7 +45,7 @@ python interactive_runner.py
 - **Option 4**: Execute transfers based on CSV test cases.
 
 ### 2. Msg Agent Service (Autonomous Settlement)
-Run this service in the background to automatically process incoming/outgoing bridge messages on Cardano.
+Run this service in the background to automatically process bridge messages on Cardano.
 ```bash
 python msg_agent.py preprod
 ```
@@ -55,7 +54,6 @@ python msg_agent.py preprod
 
 ## 📂 Project Structure
 - `interactive_runner.py`: CLI entry point.
-- `msg_agent.py`: Autonomous background service.
 - `sendtransactions/`: Transaction building logic for Cardano & EVM.
 - `utility/`: Wallet HD derivation and asset management backend.
 - `config/`: RPC settings, ABIs, and verified contract addresses.

@@ -84,7 +84,7 @@ def main_menu(direction, case_file, network):
                     asset_preparer.check_all_cardano_balances(case_file, info)
                 else:
                     info = get_evm_wallet_info()
-                    asset_preparer.check_all_evm_balances(case_file, info[:3])
+                    asset_preparer.check_all_evm_balances(case_file, info)
 
         elif choice == '3':
             if check_wallet_coverage(case_file, direction):
@@ -93,7 +93,7 @@ def main_menu(direction, case_file, network):
                     asset_preparer.distribute_cardano_funds(case_file, info)
                 else:
                     info = get_evm_wallet_info()
-                    asset_preparer.distribute_evm_funds(case_file, info[:3])
+                    asset_preparer.distribute_evm_funds(case_file, info)
 
         elif choice == '4':
             if check_wallet_coverage(case_file, direction):
@@ -134,7 +134,7 @@ def run_cardano_to_evm(case_file, network, context):
             wallet['address'],
             case['to_address'],
             case['amount_raw'],
-            contracts['outbound_demo'],
+            contracts['outbound_demo_address'],
             contracts.get('outbound_token_policy', ''),
             demo_token_policy=contracts.get('demo_token_policy'),
             demo_token_name=contracts.get('demo_token_name')
@@ -145,7 +145,7 @@ def run_cardano_to_evm(case_file, network, context):
 def run_evm_to_cardano(case_file, network):
     info = get_evm_wallet_info()
     if not info: return
-    _, _, batch_wallets, _ = info
+    _, _, batch_wallets = info
     cases = pd.read_csv(os.path.join("testcases", "evm_to_cardano", case_file)).to_dict('records')
 
     with open('config/rpc.json', 'r') as f:
