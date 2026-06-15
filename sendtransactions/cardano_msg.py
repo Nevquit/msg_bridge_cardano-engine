@@ -23,10 +23,12 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
         return None, "Error: inbound_demo_address not configured."
 
     uts = context.utxos(inbound_demo_addr) or []
-    target_utxo = next((u for u in uts if u.input.transaction_id.payload.hex() == tx_hash), None)
+    target_utxo = next((u for u in uts if str(u.input.transaction_id).lower() == tx_hash.lower() or u.input.transaction_id.payload.hex().lower() == tx_hash.lower()), None)
 
     if not target_utxo:
-        return None, f"Error: UTXO with Cardano TX hash {tx_hash} not found at script address {inbound_demo_addr}."
+        found_hashes = [str(u.input.transaction_id) for u in uts[:5]]
+        diag = f" Found {len(uts)} UTXOs. Recent hashes: {found_hashes}" if uts else " No UTXOs found at this address."
+        return None, f"Error: UTXO with Cardano TX hash {tx_hash} not found at script address {inbound_demo_addr}.{diag}"
 
     if not target_utxo.output.datum:
         return None, "Error: Target UTXO has no datum."
