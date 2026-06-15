@@ -56,11 +56,16 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
     demo_name = AssetName.from_primitive(bytes.fromhex(contracts['demo_token_name']))
     inbound_policy = PolicyId.from_primitive(contracts['inbound_token_policy'])
 
-    redeemer = Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [
-        bytes.fromhex(contracts['demo_token_policy']),
-        bytes.fromhex(evm_token_home.replace('0x','').lower())
-    ]))))
-    txb.add_script_input(target_utxo, script=PlutusV2Script(bytes.fromhex(contracts['inbound_demo_cbor'])), redeemer=redeemer)
+    try:
+        redeemer_data = cbor2.CBORTag(121, [
+            bytes.fromhex(contracts['demo_token_policy']),
+            bytes.fromhex(evm_token_home.replace('0x','').lower())
+        ])
+        redeemer = Redeemer(RawPlutusData(to_indefinite_cbor(redeemer_data)))
+        script_bytes = bytes.fromhex(contracts['inbound_demo_cbor'])
+        txb.add_script_input(target_utxo, script=PlutusV2Script(script_bytes), redeemer=redeemer)
+    except ValueError as e:
+        return None, f"Configuration Error (hex parsing): {e}. Please check config/contract_accounts.json"
 
     it_name = None
     for p, assets in target_utxo.output.amount.multi_asset.items():
