@@ -23,27 +23,10 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
         return None, "Error: inbound_demo_address not configured."
 
     uts = context.utxos(inbound_demo_addr) or []
-    target_utxo = None
-    for u in uts:
-        if not u.output.datum: continue
-        try:
-            d_bytes = u.output.datum.cbor if hasattr(u.output.datum, "cbor") else u.output.datum.to_cbor()
-            d_obj = cbor2.loads(d_bytes)
-            # The WMB message datum is a record where the source TX hash is at index 0.
-            # It is expected to be a CBORTag(121, [bytes]) or just bytes.
-            source_tx_data = d_obj.value[0]
-            if isinstance(source_tx_data, cbor2.CBORTag):
-                source_tx_bytes = source_tx_data.value[0]
-            else:
-                source_tx_bytes = source_tx_data
-
-            if isinstance(source_tx_bytes, bytes) and source_tx_bytes.hex() == tx_hash:
-                target_utxo = u
-                break
-        except: continue
+    target_utxo = next((u for u in uts if u.input.transaction_id.payload.hex() == tx_hash), None)
 
     if not target_utxo:
-        return None, f"Error: UTXO for source TX {tx_hash} not found at script address {inbound_demo_addr}."
+        return None, f"Error: UTXO with Cardano TX hash {tx_hash} not found at script address {inbound_demo_addr}."
 
     if not target_utxo.output.datum:
         return None, "Error: Target UTXO has no datum."

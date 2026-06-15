@@ -157,16 +157,16 @@ def run_receive_messages(network, context):
         return
     _, main_wallet, _, _ = info
 
-    tx_hash = input("👉 Enter EVM transaction hash: ").strip()
+    tx_hash = input("👉 Enter Cardano transaction hash (from Step 1): ").strip()
     if tx_hash.startswith("0x"):
         tx_hash = tx_hash[2:]
 
-    receiver_addr = input("👉 Enter Cardano receiver address: ").strip()
+    receiver_addr = input("👉 Enter receiving Cardano address: ").strip()
     if not receiver_addr:
         print("❌ Error: Receiver address is required.")
         return
 
-    print(f"🚀 Attempting to receive message for TX {tx_hash}...")
+    print(f"🚀 Attempting to consume InBoundToken for TX {tx_hash}...")
     try:
         tx_id, err = receive_from_evm_msg(context, main_wallet, tx_hash, receiver_addr, network)
     except Exception as e:
