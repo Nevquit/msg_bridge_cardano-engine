@@ -22,7 +22,7 @@ from utility.interaction_utils import (
     get_network, get_direction, get_case_file,
     get_cardano_wallet_info, get_evm_wallet_info, get_confirmed_address
 )
-from sendtransactions.cardano_msg import cardano_to_evm_msg
+from sendtransactions.cardano_msg import cardano_to_evm_msg, receive_from_evm_msg
 from sendtransactions.evm_msg import Erc20TokenRemote
 
 def check_wallet_coverage(case_file, direction):
@@ -67,8 +67,13 @@ def main_menu(direction, case_file, network):
         print(f"3. 💸 Distribute Funds ({target_name})")
         print("4. 🚀 Run Transactions")
         print("5. 🧹 Sweep Assets")
-        print("6. 🔙 Change Direction/Case")
-        print("7. 🚪 Exit")
+        if not is_cardano:
+            print("6. 📥 Receive messages from other chains")
+
+        last_option = '6' if is_cardano else '7'
+        exit_option = '7' if is_cardano else '8'
+        print(f"{last_option}. 🔙 Change Direction/Case")
+        print(f"{exit_option}. 🚪 Exit")
         print("="*50)
         choice = input("👉 Choice: ").strip()
 
@@ -111,8 +116,11 @@ def main_menu(direction, case_file, network):
                 info = get_evm_wallet_info()
                 if info: asset_preparer.sweep_evm_assets(dest_addr, info[:3])
 
-        elif choice == '6': return
-        elif choice == '7': sys.exit(0)
+        elif choice == '6' and not is_cardano:
+            run_receive_messages(network, asset_preparer.cardano_context)
+
+        elif choice == last_option: return
+        elif choice == exit_option: sys.exit(0)
 
 def run_cardano_to_evm(case_file, network, context):
     info = get_cardano_wallet_info()
@@ -141,6 +149,33 @@ def run_cardano_to_evm(case_file, network, context):
         )
         if tx_id: print(f"  ✅ Success! TX ID: {tx_id}")
         else: print(f"  ❌ Error: {err}")
+
+def run_receive_messages(network, context):
+    info = get_cardano_wallet_info()
+    if not info:
+        print("❌ Error: Cardano wallets not found.")
+        return
+    _, main_wallet, _, _ = info
+
+    tx_hash = input("👉 Enter EVM transaction hash: ").strip()
+    if tx_hash.startswith("0x"):
+        tx_hash = tx_hash[2:]
+
+    receiver_addr = input("👉 Enter Cardano receiver address: ").strip()
+    if not receiver_addr:
+        print("❌ Error: Receiver address is required.")
+        return
+
+    print(f"🚀 Attempting to receive message for TX {tx_hash}...")
+    try:
+        tx_id, err = receive_from_evm_msg(context, main_wallet, tx_hash, receiver_addr, network)
+    except Exception as e:
+        tx_id, err = None, str(e)
+
+    if tx_id:
+        print(f"  ✅ Success! Cardano TX ID: {tx_id}")
+    else:
+        print(f"  ❌ Error: {err}")
 
 def run_evm_to_cardano(case_file, network):
     info = get_evm_wallet_info()
