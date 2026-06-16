@@ -56,7 +56,7 @@ class MsgAgent:
                 amount = beneficiary.value[1]
 
                 receiver_tag = beneficiary.value[0]
-                if isinstance(receiver_tag, cbor2.CBORTag) and receiver_tag.tag == 122:
+                if isinstance(receiver_tag, cbor2.CBORTag) and receiver_tag.tag in [121, 122]:
                     addr_fields = receiver_tag.value[0].value # [p_cred, s_cred]
                     p_hash = addr_fields[0].value[0]
                     s_hash = addr_fields[1].value[0].value[0].value[0] if isinstance(addr_fields[1], cbor2.CBORTag) and addr_fields[1].tag == 121 else None

@@ -2,8 +2,8 @@ import json
 from pycardano import (
     Address, TransactionBuilder, TransactionOutput,
     Value, MultiAsset, AssetName, Asset, PolicyId,
-    PlutusV2Script, PlutusV3Script, Redeemer, PaymentExtendedSigningKey,
-    PaymentSigningKey, UTxO, TransactionInput
+    PlutusV2Script, Redeemer, PaymentExtendedSigningKey,
+    PaymentSigningKey, UTxO, TransactionInput, VerificationKeyHash
 )
 from pycardano import Datum, RawPlutusData
 import cbor2
@@ -36,16 +36,36 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
     try:
         datum_bytes = target_utxo.output.datum.cbor if hasattr(target_utxo.output.datum, "cbor") else target_utxo.output.datum.to_cbor()
         datum_obj = cbor2.loads(datum_bytes)
+
         inner_call_data = datum_obj.value[6].value[1]
         beneficiary = cbor2.loads(inner_call_data)
         amount = beneficiary.value[1]
+
+        receiver_tag = beneficiary.value[0]
+        if isinstance(receiver_tag, cbor2.CBORTag) and receiver_tag.tag in [121, 122]:
+            addr_fields = receiver_tag.value[0].value # [p_cred, s_cred]
+            p_hash = addr_fields[0].value[0]
+            # Try to robustly parse staking part
+            s_hash = None
+            try:
+                if isinstance(addr_fields[1], cbor2.CBORTag) and addr_fields[1].tag == 121:
+                    # Staking part is Tag 121 [ Tag 121 [ Tag 121 [ StakeHash ] ] ]
+                    s_hash = addr_fields[1].value[0].value[0].value[0]
+            except (AttributeError, IndexError):
+                pass
+
+            if s_hash:
+                receiver_addr = Address(VerificationKeyHash(p_hash), VerificationKeyHash(s_hash), network=context.network)
+            else:
+                receiver_addr = Address(VerificationKeyHash(p_hash), network=context.network)
+        else:
+            receiver_addr = Address.from_primitive(receiver_addr_str)
     except Exception as e:
         return None, f"Error parsing datum: {e}"
 
     sk_bytes = bytes.fromhex(wallet['private_key'])
     sk = PaymentExtendedSigningKey.from_primitive(sk_bytes) if len(sk_bytes) == 64 else PaymentSigningKey.from_primitive(sk_bytes)
     sender_addr = Address.from_primitive(wallet['address'])
-    receiver_addr = Address.from_primitive(receiver_addr_str)
 
     txb = TransactionBuilder(context)
     txb.add_input_address(sender_addr)
@@ -65,8 +85,7 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
         ])
         redeemer = Redeemer(RawPlutusData(to_indefinite_cbor(redeemer_data)))
         script_bytes = bytes.fromhex(contracts['inbound_demo_cbor'])
-        # Try Plutus V3 as primary if the environment/contracts are upgraded
-        txb.add_script_input(target_utxo, script=PlutusV3Script(script_bytes), redeemer=redeemer)
+        txb.add_script_input(target_utxo, script=PlutusV2Script(script_bytes), redeemer=redeemer)
     except ValueError as e:
         return None, f"Configuration Error (hex parsing): {e}. Please check config/contract_accounts.json"
 
@@ -82,8 +101,8 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
     mint_assets[demo_policy] = Asset({demo_name: int(amount)})
     txb.mint = mint_assets
 
-    txb.add_minting_script(PlutusV3Script(bytes.fromhex(contracts['inbound_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
-    txb.add_minting_script(PlutusV3Script(bytes.fromhex(contracts['demo_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
+    txb.add_minting_script(PlutusV2Script(bytes.fromhex(contracts['inbound_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
+    txb.add_minting_script(PlutusV2Script(bytes.fromhex(contracts['demo_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
 
     val = Value(coin=2000000, multi_asset=MultiAsset({demo_policy: Asset({demo_name: int(amount)})}))
     txb.add_output(TransactionOutput(receiver_addr, amount=val))
