@@ -1,0 +1,30 @@
+{
+    "wallet_name": "cardano_key_set_6741ec17",
+    "mnemonic": "toward aisle rescue salt faith punch clever cabbage panel modify misery monkey gentle direct world pumpkin senior school submit evidence elegant coyote behind bracket",
+    "main_wallet": {
+        "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+        "private_key": "b0e647014f5106c137117bb0c18ab1f6d0c3171a83a9c425f08a862ed2685f5585886ae65061bbfbb00e1bb50afa8880ef0e4c8a626abd6e65f6318cd98719ec"
+    },
+    "batch_wallets": [
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "40f1eea30395c53708611f74826f10a22c6767f643135dfadea5cc24d0685f55c2b0ed73754529ee34d43826cc0fc228d024b32736abdeaf5c60f5d8521c78a4"
+        },
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "78f4a7e0de9ecba30f53da88af05cf5e9019da9ae8136564d97b876ecb685f55c5b4165815e24e4bdf6f1eecdf2134286243f32fe351b5566e8a6b0daef194f7"
+        },
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "7052663ef7bd6a9592727d8b06c4969ed41f607d0fd5cae6022dae18cf685f5580e60b203853cbed575d9a17c92c5f3bd80265475e554835a72c8185511e65ee"
+        },
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "d84340c56752adfa9673c75c5ddd04faf97e9df7d6f4af00f92da215d1685f550d5b4689a6963bc7353099ba351fe28882b02c8f1df4049d82b8797a193f8e4c"
+        },
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "b88afbb7db47045e16bac5184e92b83878096290ab4467b160eab245cb685f5554f2c013f44b9381def6aaea134c25e01e0b77ab9057916c62670709342a1b7c"
+        }
+    ]
+}

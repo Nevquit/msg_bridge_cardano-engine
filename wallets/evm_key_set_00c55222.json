@@ -1,0 +1,14 @@
+{
+    "wallet_name": "evm_key_set_00c55222",
+    "mnemonic": "area ball typical digital core transfer step forward voice walnut great mother home seminar motion artist business evil leave frozen wait vicious collect wasp",
+    "main_wallet": {
+        "address": "0x882A87fdFB4262cCAe4915cF3337123D1D6Aa6D6",
+        "private_key": "1d5dcbc465639becb0a4eed11e8dee9dcc69b93e812701f357b29195d0801f99"
+    },
+    "batch_wallets": [
+        {
+            "address": "0xB676Ccd9c759BD7b705208D7D99D04e1359623d3",
+            "private_key": "5f5235ed3d48add011993141d721665e1c1ff83a83b3dbc84d4e02f01fcc5c20"
+        }
+    ]
+}

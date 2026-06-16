@@ -1,0 +1,30 @@
+{
+    "wallet_name": "evm_key_set_6741ec17",
+    "mnemonic": "toward aisle rescue salt faith punch clever cabbage panel modify misery monkey gentle direct world pumpkin senior school submit evidence elegant coyote behind bracket",
+    "main_wallet": {
+        "address": "0xcDE23d2C0a1C247EA7B0b4621C52A361Ee8492c4",
+        "private_key": "298f9acc71f4a220506cbb3dc5de06f5a1e87f89563fb97ec486702c3a28fef5"
+    },
+    "batch_wallets": [
+        {
+            "address": "0x97AF29AC56c329D61358F77Cd3b3f288B1c244F3",
+            "private_key": "cad82675adc15d63d5ac8b73454381bb0edf2812390d36ff3a75c3eb4084294a"
+        },
+        {
+            "address": "0xA313F63B0eBb796D1c57396c72F581C5075C043a",
+            "private_key": "d05dd2711333e79a58c60fe2071da7eedcd6ee5bc7e26708c977ce29dc8a02b3"
+        },
+        {
+            "address": "0x4850D4A52e10201Dd532B29Ee573C7884f0941aA",
+            "private_key": "64a06c94d96913f20e563ef88c65dc8b45c2fad87e7f4d505cfcadad34af7039"
+        },
+        {
+            "address": "0x9CBb207ED24d1891C9a95B3dc584236610DEe1Cd",
+            "private_key": "74a3c5b1b2b6b6aac7ee0e973e6cb5a00bb8258ffbd8e1d56c62b59aa9f7acdc"
+        },
+        {
+            "address": "0x83498B5c3f04AEAAA7b75274cC09Bd2e3A69a325",
+            "private_key": "fb0b445c5cc573e4da0d136f574c17b0c02096cb781b48162dfa0236115791a9"
+        }
+    ]
+}

@@ -1,0 +1,33 @@
+[
+    {
+        "mnemonic": "honey bleak metal glimpse about marine angle alley issue zone tiger category father sudden chef boss large miss sheriff buddy family surface shrimp forest",
+        "main_wallet": {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "30b2b0c9460c5c3fc4062bf6d38be696cdfd3521932067513a47b3605592fd549049b961f8ffd1160dba841044e8220e4c13a741f11abe8e4352d5c8cc83eef2"
+        },
+        "batch_wallets": [
+            {
+                "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+                "private_key": "3046987b46c5e53530e19e30d1fd31769ad407c7c6f460495f4af41f5592fd547a69907343441e15e7cfca3702eb435bb074ff5f08e773e13c11714bfb571248"
+            },
+            {
+                "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+                "private_key": "a079c7ba4098b7a94c42ffb1053db78974e0a6f378327025f2faba475592fd54e891306e87aa9ce1e8447bea3ebfcbacd150ca9482087979b78162e2655c4bdf"
+            },
+            {
+                "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+                "private_key": "c85c8c555715d1df2ce9aaf626fa5fa5d067d76f92df2f425f1293b14e92fd54bedec4bce0bf53ff2a0f7b4d29990699ed65ccc7c9e2b685af8bb5ccb690506d"
+            }
+        ],
+        "redeemer_wallets": [
+            {
+                "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+                "private_key": "780349eac957e09872e6345aa1cedd024b088a4f780018da560bf1595092fd54a6435ee270aa0394dc61a784bc6f40ccf87dbd958bd60d88c7ef683d099300c6"
+            },
+            {
+                "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+                "private_key": "c8659e0492396102efabfce82ba3eb6d204b2d94f738ac8e8243864c5492fd54546ee8aa5a9b33d745c1a55b33ade36858bd14d9f6f0493540e0e418a722342a"
+            }
+        ]
+    }
+]

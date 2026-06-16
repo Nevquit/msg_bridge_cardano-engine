@@ -1,0 +1,30 @@
+{
+    "wallet_name": "evm_key_set_7db33033",
+    "mnemonic": "almost drum fog model narrow subject aspect hero link wife transfer valley swallow art olympic kid pudding child pledge call yard region pave mean",
+    "main_wallet": {
+        "address": "0x85E32e67344a8A51aa158A5028bFCeC6133E5659",
+        "private_key": "bd6830d2ad593beb5412bd2f4654bdaea36a80b2c369114efa9c2a952a46cccd"
+    },
+    "batch_wallets": [
+        {
+            "address": "0xd80c3aC50aAEB5308E3BaA5931CF6892DDE0f464",
+            "private_key": "b708d15a53e22b48d6ac19e3a6684fb5895bd4e13958d1458da7290dbd591850"
+        },
+        {
+            "address": "0x34fcF4d4729852Dd935D3FFD11f0DA991E0c6aB2",
+            "private_key": "d8778ac32f01429df96a9b2ef7ebe1838b22bfc756959b93531aa8e839851a4b"
+        },
+        {
+            "address": "0xDEf739edB5Ec40078F6bcF55De5FB37404E32407",
+            "private_key": "b00179a617b4ce26b851364159bd2d0e9502fc813cb117a94816a3435f81fc24"
+        },
+        {
+            "address": "0x57f7229Fff28914bB4aE5a343394F6742bCF55c2",
+            "private_key": "c1d6d8d4e00559e9540186b764ea78fdd10754975454ef40caf08c3a0f21f222"
+        },
+        {
+            "address": "0xfCD72886D66236c2b1E3d3c0e7d873c5f417dE8B",
+            "private_key": "ed34c9ab10438fd0e5ab7fd5cccac35a5b22c8eaf4f8d0e60c888d29aeb3a188"
+        }
+    ]
+}

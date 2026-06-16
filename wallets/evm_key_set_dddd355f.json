@@ -1,0 +1,30 @@
+{
+    "wallet_name": "evm_key_set_dddd355f",
+    "mnemonic": "very initial cruise helmet hip caution aunt hybrid oil alcohol hold grief wish civil almost wood print daring orient impulse visa fit usage avoid",
+    "main_wallet": {
+        "address": "0xaF02AFaBf40EE34610a50a2E3CEbeB6C8fe9585B",
+        "private_key": "53d047cbde11f5515f695841db6641fd062adea5b3bb99d64a5fed181f1369bb"
+    },
+    "batch_wallets": [
+        {
+            "address": "0x4433fd567b5f75d47766D6D5A2080B5CC51e5A03",
+            "private_key": "014c7ca8dbe9cf5292c40571091567d4361748d991340111938e10173e522629"
+        },
+        {
+            "address": "0xf14A3B83eeBfd9f4144139AcE84488Aa1Fb2fF6A",
+            "private_key": "a98372f23b3336e2cf2022cc16092f5cd456c012e79b31c9f6b16b02453dbcf2"
+        },
+        {
+            "address": "0xA4D73F722dB5f4e26621B107f4A2F14EeeF33F55",
+            "private_key": "507402ac5372129c245072e30c6e9d84673792824e6104829400f9fc097fe341"
+        },
+        {
+            "address": "0x3dcBe2102d96701FB8077c4d88af53576fecFB59",
+            "private_key": "423212c9fd185ad5d52845fd67242224d59ca64be7b76c6d051f24367b95c851"
+        },
+        {
+            "address": "0x3Bd10f70Af6F9fc08f5D101e8774b8e4775b023A",
+            "private_key": "86c0decfa10acdfabee57f4b2695dbef9aede5c07d4aae23b37b12374b0166d5"
+        }
+    ]
+}

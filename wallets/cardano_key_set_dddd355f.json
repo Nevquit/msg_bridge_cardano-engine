@@ -1,0 +1,30 @@
+{
+    "wallet_name": "cardano_key_set_dddd355f",
+    "mnemonic": "very initial cruise helmet hip caution aunt hybrid oil alcohol hold grief wish civil almost wood print daring orient impulse visa fit usage avoid",
+    "main_wallet": {
+        "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+        "private_key": "e0ea755001a4038fceb58b09c9543a4332e38c9c6c05b1b8efaf73c0fe691a5e77a56d9c81d28ba848273437189c2546487e61fef50fb1d966e584bd28574c75"
+    },
+    "batch_wallets": [
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "408bbb2ac05edc8f0c9be7ce806be61d42d2be6ac8274dec102f7841fc691a5e0a52ac9417c07855a0cdaf903905b59830f619e3dd168cee59fa2a212730dcee"
+        },
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "40e0412523ec6c709815b6fb9fd9c900cad57a692a6c89913048ae29006a1a5e0abf3dadac8e7d1727bf42a00ff950692d102c79f12598ff3efb083b65f80fbd"
+        },
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "c0c2a1ff73dd0018a61c117ba1da4ed39c8c3a0c414127a5a30e69ddfe691a5e83188bb5f24b9ae183d2aa08ffe32efbf1a43904650f8f4170e974fce75805b0"
+        },
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "98bfbad4f2571b72764899d68f18480ee9e8958732ee599be08b71f3f9691a5e73b4e1f0284a57ced7b0fdf5b9f51bfd6e95b6edc00f0a053cf7f2ba8511c5d8"
+        },
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "a87a43ca090324341ae97754c87f437e84941e3f6b64a7e8c618f525016a1a5e4fb8e910da9c0bd694dfda45e7ba124da9911a2aa7976bafce68e517406c6d2d"
+        }
+    ]
+}

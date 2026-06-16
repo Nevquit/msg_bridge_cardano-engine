@@ -1,0 +1,14 @@
+{
+    "wallet_name": "cardano_key_set_00c55222",
+    "mnemonic": "area ball typical digital core transfer step forward voice walnut great mother home seminar motion artist business evil leave frozen wait vicious collect wasp",
+    "main_wallet": {
+        "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+        "private_key": "78672c97a8ce0de2e289d9e532eacb7f9168058945f2013c3b237a9a49886f5ac2b0d1cbb5ba017cea243df3f807b126ebcf26b0428858ea5da27ad76c6f4d75"
+    },
+    "batch_wallets": [
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "b81a93b5adb97742fd8dc84e45fa9afad640a068404c30915b80665248886f5a478480e0387ebcc67298dcd329e653b2dec6490f4ecfeb8a55a3a031984a3887"
+        }
+    ]
+}

@@ -1,0 +1,14 @@
+{
+    "wallet_name": "evm_key_set_455ad0be",
+    "mnemonic": "honey bleak metal glimpse about marine angle alley issue zone tiger category father sudden chef boss large miss sheriff buddy family surface shrimp forest",
+    "main_wallet": {
+        "address": "0x2A3567F09a783509D932d3908Cb3f3c5CC32AFd0",
+        "private_key": "e5a9348342195c5ddf666849fc2e728f99b98fdc4976c5c2667cbec7cb21b3e9"
+    },
+    "batch_wallets": [
+        {
+            "address": "0x23179D1DE649B85f9ff826822613Cb18F8F08e9f",
+            "private_key": "1639e2bbaf84f49bcdb637f74d675c268077c8acecd9e2478ad3d057c1948f9d"
+        }
+    ]
+}

@@ -1,0 +1,30 @@
+{
+    "wallet_name": "cardano_key_set_7db33033",
+    "mnemonic": "almost drum fog model narrow subject aspect hero link wife transfer valley swallow art olympic kid pudding child pledge call yard region pave mean",
+    "main_wallet": {
+        "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+        "private_key": "607c0aa5a91b6202632d351c2a540015897496b5a067d9c89ac8fe7e8b4cc34f652ff687d1ecd820fea3f18047512c917884291e905973a32b454033571df5a2"
+    },
+    "batch_wallets": [
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "987cd8db4f1c2ace6669384a365c4dc413d22e7e6d71bf9682402d96894cc34f07f65d06631c8a082747849c13800eafea82d82c9e3eacd3562d047d22127ac4"
+        },
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "d0f662add5d46e4d5004d3aa64adda614afbd13ad60fbd51ecb8a6e18e4cc34fb73cd3f633dc440b742e1780dc1315aabdbfa879ccbcf2dbf43dc29f2ba34113"
+        },
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "9835d8ba5e39ae6db6b0edc05500b084dbcbee005ce9d72f5b3dd4d38b4cc34f66505aee051251bf6a5cb2b90876b188739fd59e7eaaa4c5ba4c36c00fbee366"
+        },
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "98c9b13f1dabd2cefa4c2f5de230983fc55246742b77f64e0457c6b28a4cc34fee192fd392d3c2a5517e80f53b27f5b13db2943b8296acbc78651b80a2d459fc"
+        },
+        {
+            "address": "addr_test1qzpke35fx8pwfclg8pszajseqfv36gtgx7a0mhlx7ryvkpurdnrgjvwzun37swrq9m9pjqjer5sksda6lh07duxgevrsl596em",
+            "private_key": "9090c19f87cc3502cadac7d8c502836da8656a62221ccf370d86bbe2884cc34f32096a23fa048d74340808b04da029ab54941d948b6b774d5b64e49e21eba6bd"
+        }
+    ]
+}
