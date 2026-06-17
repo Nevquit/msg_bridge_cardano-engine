@@ -23,7 +23,7 @@ class Erc20TokenRemote:
             else:
                 s_cred = cbor2.CBORTag(122, [])
             mesh_address = cbor2.CBORTag(121, [p_cred, s_cred])
-            msg_address = cbor2.CBORTag(121, [mesh_address])
+            msg_address = cbor2.CBORTag(122, [mesh_address])
             cc_message = cbor2.CBORTag(121, [msg_address, int(amount)])
             return to_indefinite_cbor(cc_message)
         except:

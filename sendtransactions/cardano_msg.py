@@ -43,17 +43,19 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
 
         receiver_tag = beneficiary.value[0]
         if isinstance(receiver_tag, cbor2.CBORTag) and receiver_tag.tag in [121, 122]:
-            inner_addr = receiver_tag.value[0]
-            addr_fields = inner_addr.value # [p_cred, s_cred]
-
+            # Robust extraction of hashes from nested tags
             def get_inner_bytes(obj):
                 if isinstance(obj, bytes): return obj
-                if isinstance(obj, cbor2.CBORTag) and isinstance(obj.value, list) and len(obj.value) > 0:
-                    return get_inner_bytes(obj.value[0])
+                if isinstance(obj, cbor2.CBORTag):
+                    if isinstance(obj.value, list) and len(obj.value) > 0:
+                        return get_inner_bytes(obj.value[0])
+                    return get_inner_bytes(obj.value)
                 if isinstance(obj, list) and len(obj) > 0:
                     return get_inner_bytes(obj[0])
                 return None
 
+            # receiver_tag.value[0] is the inner Tag 121 [p_cred, s_cred]
+            addr_fields = receiver_tag.value[0].value
             p_hash = get_inner_bytes(addr_fields[0])
             s_hash = get_inner_bytes(addr_fields[1])
 
@@ -86,15 +88,16 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
 
     try:
         # Spend Redeemer expects [ PolicyId, ASCII_Hex_Bytes ]
-        # Definite length encoding (d87982...) is required by Ogmios/Ledger for some Plutus V3 scripts
-        evm_hex_bytes = evm_token_home.replace('0x','').lower().encode('utf-8')
+        # Direct CBORTag ensures definite-length encoding d879... required by Ledger/Ogmios
+        evm_hex_str = evm_token_home.lower()
+        if not evm_hex_str.startswith('0x'): evm_hex_str = '0x' + evm_hex_str
+
         redeemer_data = cbor2.CBORTag(121, [
             bytes.fromhex(contracts['demo_token_policy']),
-            b'0x' + evm_hex_bytes
+            evm_hex_str.encode('ascii')
         ])
-        redeemer = Redeemer(RawPlutusData(cbor2.dumps(redeemer_data)))
-        script_bytes = bytes.fromhex(contracts['inbound_demo_cbor'])
-        txb.add_script_input(target_utxo, script=PlutusV3Script(script_bytes), redeemer=redeemer)
+        redeemer = Redeemer(redeemer_data)
+        txb.add_script_input(target_utxo, script=PlutusV3Script(bytes.fromhex(contracts['inbound_demo_cbor'])), redeemer=redeemer)
     except ValueError as e:
         return None, f"Configuration Error (hex parsing): {e}. Please check config/contract_accounts.json"
 
@@ -110,8 +113,8 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
     mint_assets[demo_policy] = Asset({demo_name: int(amount)})
     txb.mint = mint_assets
 
-    txb.add_minting_script(PlutusV3Script(bytes.fromhex(contracts['inbound_token_cbor'])), Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [])))))
-    txb.add_minting_script(PlutusV3Script(bytes.fromhex(contracts['demo_token_cbor'])), Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [])))))
+    txb.add_minting_script(PlutusV3Script(bytes.fromhex(contracts['inbound_token_cbor'])), Redeemer(cbor2.CBORTag(121, [])))
+    txb.add_minting_script(PlutusV3Script(bytes.fromhex(contracts['demo_token_cbor'])), Redeemer(cbor2.CBORTag(121, [])))
 
     val = Value(coin=2000000, multi_asset=MultiAsset({demo_policy: Asset({demo_name: int(amount)})}))
     txb.add_output(TransactionOutput(receiver_addr, amount=val))
