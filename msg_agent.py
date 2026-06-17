@@ -138,11 +138,12 @@ class MsgAgent:
         xport_plutus_addr = self.get_plutus_address(self.contracts['xport'])
         # Based on TS version: mConStr0([contractsInfo.demoTokenPolicy, defaultConfig.demoTokenName, betch32AddressToMeshData(contractsInfo.xportAddress),defaultConfig.EvmContractADDRESS])
         # xport_plutus_addr should already be betch32AddressToMeshData equivalent
+        evm_hex_bytes = self.evm_token_home.replace('0x','').lower().encode('utf-8')
         redeemer_data = cbor2.CBORTag(121, [
             bytes.fromhex(self.contracts['demo_token_policy']),
             self.demo_name.payload,
             xport_plutus_addr,
-            b'0x' + self.evm_token_home.replace('0x','').lower().encode('utf-8')
+            b'0x' + evm_hex_bytes
         ])
         txb.add_script_input(utxo, script=PlutusV3Script(bytes.fromhex(self.contracts['outbound_demo_cbor'])), redeemer=Redeemer(RawPlutusData(cbor2.dumps(redeemer_data))))
 

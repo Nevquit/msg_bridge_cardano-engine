@@ -40,15 +40,12 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
         inner_call_data = datum_obj.value[6].value[1]
         beneficiary = cbor2.loads(inner_call_data)
         amount = beneficiary.value[1]
-        print(f"  [DEBUG] Parsed amount from datum: {amount}")
 
         receiver_tag = beneficiary.value[0]
         if isinstance(receiver_tag, cbor2.CBORTag) and receiver_tag.tag in [121, 122]:
-            # Address structure in successful datum: Tag 122 [ Tag 121 [ Tag 121 [ bytes ], Tag 121 [ Tag 121 [ Tag 121 [ bytes ] ] ] ] ]
             inner_addr = receiver_tag.value[0]
             addr_fields = inner_addr.value # [p_cred, s_cred]
 
-            # Robust extraction of hashes
             def get_inner_bytes(obj):
                 if isinstance(obj, bytes): return obj
                 if isinstance(obj, cbor2.CBORTag) and isinstance(obj.value, list) and len(obj.value) > 0:
@@ -67,10 +64,8 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
                     receiver_addr = Address(VerificationKeyHash(p_hash), network=context.network)
             else:
                 receiver_addr = Address.from_primitive(receiver_addr_str)
-            print(f"  [DEBUG] Derived receiver address from datum: {receiver_addr}")
         else:
             receiver_addr = Address.from_primitive(receiver_addr_str)
-            print(f"  [DEBUG] Using provided receiver address: {receiver_addr}")
     except Exception as e:
         return None, f"Error parsing datum: {e}"
 
