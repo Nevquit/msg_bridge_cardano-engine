@@ -57,10 +57,23 @@ class MsgAgent:
 
                 receiver_tag = beneficiary.value[0]
                 if isinstance(receiver_tag, cbor2.CBORTag) and receiver_tag.tag in [121, 122]:
-                    addr_fields = receiver_tag.value[0].value # [p_cred, s_cred]
-                    p_hash = addr_fields[0].value[0]
-                    s_hash = addr_fields[1].value[0].value[0].value[0] if isinstance(addr_fields[1], cbor2.CBORTag) and addr_fields[1].tag == 121 else None
-                    receiver = Address(p_hash, s_hash, network=self.network)
+                    inner_addr = receiver_tag.value[0]
+                    addr_fields = inner_addr.value # [p_cred, s_cred]
+
+                    def get_inner_bytes(obj):
+                        if isinstance(obj, bytes): return obj
+                        if isinstance(obj, cbor2.CBORTag) and isinstance(obj.value, list) and len(obj.value) > 0:
+                            return get_inner_bytes(obj.value[0])
+                        if isinstance(obj, list) and len(obj) > 0:
+                            return get_inner_bytes(obj[0])
+                        return None
+
+                    p_hash = get_inner_bytes(addr_fields[0])
+                    s_hash = get_inner_bytes(addr_fields[1])
+
+                    if p_hash:
+                        receiver = Address(p_hash, s_hash, network=self.network)
+                    else: receiver = Address.from_primitive(wallet['address'])
                 else: receiver = Address.from_primitive(wallet['address'])
                 self.execute_inbound_tx(u, wallet, receiver, amount)
             except Exception as e: print(f"  ❌ Inbound Parse Error: {e}")
@@ -74,9 +87,10 @@ class MsgAgent:
         if not collateral: return
         txb.collaterals.append(collateral)
 
+        evm_hex_bytes = self.evm_token_home.replace('0x','').lower().encode('utf-8')
         redeemer = Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [
             bytes.fromhex(self.contracts['demo_token_policy']),
-            cbor2.CBORTag(122, [bytes.fromhex(self.evm_token_home.replace('0x','').lower())])
+            b'0x' + evm_hex_bytes
         ]))))
         txb.add_script_input(utxo, script=PlutusV3Script(bytes.fromhex(self.contracts['inbound_demo_cbor'])), redeemer=redeemer)
 
