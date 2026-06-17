@@ -98,8 +98,7 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
             b'0x' + evm_hex_bytes
         ])
         redeemer = Redeemer(RawPlutusData(to_indefinite_cbor(redeemer_data)))
-        script_bytes = bytes.fromhex(contracts['inbound_demo_cbor'])
-        txb.add_script_input(target_utxo, script=PlutusV3Script(script_bytes), redeemer=redeemer)
+        txb.add_script_input(target_utxo, script=PlutusV3Script(bytes.fromhex(contracts['inbound_demo_cbor'])), redeemer=redeemer)
     except ValueError as e:
         return None, f"Configuration Error (hex parsing): {e}. Please check config/contract_accounts.json"
 
