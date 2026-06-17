@@ -2,7 +2,7 @@ import json
 from pycardano import (
     Address, TransactionBuilder, TransactionOutput,
     Value, MultiAsset, AssetName, Asset, PolicyId,
-    PlutusV2Script, Redeemer, PaymentExtendedSigningKey,
+    PlutusV2Script, PlutusV3Script, Redeemer, PaymentExtendedSigningKey,
     PaymentSigningKey, UTxO, TransactionInput, VerificationKeyHash
 )
 from pycardano import Datum, RawPlutusData
@@ -79,13 +79,15 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
     inbound_policy = PolicyId.from_primitive(contracts['inbound_token_policy'])
 
     try:
+        # demo_token_policy is PolicyId (bytes)
+        # remote_contract is ForeignAddress (Tag 122 [ bytes ])
         redeemer_data = cbor2.CBORTag(121, [
             bytes.fromhex(contracts['demo_token_policy']),
-            bytes.fromhex(evm_token_home.replace('0x','').lower())
+            cbor2.CBORTag(122, [bytes.fromhex(evm_token_home.replace('0x','').lower())])
         ])
         redeemer = Redeemer(RawPlutusData(to_indefinite_cbor(redeemer_data)))
         script_bytes = bytes.fromhex(contracts['inbound_demo_cbor'])
-        txb.add_script_input(target_utxo, script=PlutusV2Script(script_bytes), redeemer=redeemer)
+        txb.add_script_input(target_utxo, script=PlutusV3Script(script_bytes), redeemer=redeemer)
     except ValueError as e:
         return None, f"Configuration Error (hex parsing): {e}. Please check config/contract_accounts.json"
 
@@ -101,8 +103,8 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
     mint_assets[demo_policy] = Asset({demo_name: int(amount)})
     txb.mint = mint_assets
 
-    txb.add_minting_script(PlutusV2Script(bytes.fromhex(contracts['inbound_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
-    txb.add_minting_script(PlutusV2Script(bytes.fromhex(contracts['demo_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
+    txb.add_minting_script(PlutusV3Script(bytes.fromhex(contracts['inbound_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
+    txb.add_minting_script(PlutusV3Script(bytes.fromhex(contracts['demo_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
 
     val = Value(coin=2000000, multi_asset=MultiAsset({demo_policy: Asset({demo_name: int(amount)})}))
     txb.add_output(TransactionOutput(receiver_addr, amount=val))
