@@ -88,10 +88,11 @@ class MsgAgent:
         txb.collaterals.append(collateral)
 
         evm_hex_bytes = self.evm_token_home.replace('0x','').lower().encode('utf-8')
-        redeemer = Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [
+        redeemer_data = cbor2.CBORTag(121, [
             bytes.fromhex(self.contracts['demo_token_policy']),
             b'0x' + evm_hex_bytes
-        ]))))
+        ])
+        redeemer = Redeemer(RawPlutusData(cbor2.dumps(redeemer_data)))
         txb.add_script_input(utxo, script=PlutusV3Script(bytes.fromhex(self.contracts['inbound_demo_cbor'])), redeemer=redeemer)
 
         it_name = None
@@ -103,8 +104,8 @@ class MsgAgent:
         mint_assets[self.demo_policy] = Asset({self.demo_name: int(amount)})
         txb.mint = mint_assets
 
-        txb.add_minting_script(PlutusV3Script(bytes.fromhex(self.contracts['inbound_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
-        txb.add_minting_script(PlutusV3Script(bytes.fromhex(self.contracts['demo_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
+        txb.add_minting_script(PlutusV3Script(bytes.fromhex(self.contracts['inbound_token_cbor'])), Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [])))))
+        txb.add_minting_script(PlutusV3Script(bytes.fromhex(self.contracts['demo_token_cbor'])), Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [])))))
         txb.add_output(TransactionOutput(receiver, amount=Value(coin=2000000, multi_asset=MultiAsset({self.demo_policy: Asset({self.demo_name: int(amount)})})) ))
 
         try:
@@ -135,13 +136,15 @@ class MsgAgent:
         txb.collaterals.append(collateral)
 
         xport_plutus_addr = self.get_plutus_address(self.contracts['xport'])
+        # Based on TS version: mConStr0([contractsInfo.demoTokenPolicy, defaultConfig.demoTokenName, betch32AddressToMeshData(contractsInfo.xportAddress),defaultConfig.EvmContractADDRESS])
+        # xport_plutus_addr should already be betch32AddressToMeshData equivalent
         redeemer_data = cbor2.CBORTag(121, [
             bytes.fromhex(self.contracts['demo_token_policy']),
             self.demo_name.payload,
             xport_plutus_addr,
-            bytes.fromhex(self.evm_token_home.replace('0x','').lower())
+            b'0x' + self.evm_token_home.replace('0x','').lower().encode('utf-8')
         ])
-        txb.add_script_input(utxo, script=PlutusV3Script(bytes.fromhex(self.contracts['outbound_demo_cbor'])), redeemer=Redeemer(RawPlutusData(to_indefinite_cbor(redeemer_data))))
+        txb.add_script_input(utxo, script=PlutusV3Script(bytes.fromhex(self.contracts['outbound_demo_cbor'])), redeemer=Redeemer(RawPlutusData(cbor2.dumps(redeemer_data))))
 
         mint_assets = MultiAsset()
         mint_assets[self.demo_policy] = Asset({self.demo_name: -int(amount)})
@@ -149,9 +152,9 @@ class MsgAgent:
             mint_assets[self.outbound_policy] = Asset({self.outbound_token_name: 1})
         txb.mint = mint_assets
 
-        txb.add_minting_script(PlutusV3Script(bytes.fromhex(self.contracts['demo_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
+        txb.add_minting_script(PlutusV3Script(bytes.fromhex(self.contracts['demo_token_cbor'])), Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [])))))
         if self.outbound_policy:
-            txb.add_minting_script(PlutusV3Script(bytes.fromhex(self.contracts['outbound_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
+            txb.add_minting_script(PlutusV3Script(bytes.fromhex(self.contracts['outbound_token_cbor'])), Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [])))))
 
         txb.add_output(TransactionOutput(Address.from_primitive(self.contracts['xport']), amount=Value(coin=2000000, multi_asset=MultiAsset({self.outbound_policy: Asset({self.outbound_token_name: 1})})) if self.outbound_policy else Value(coin=2000000), datum=utxo.output.datum))
 

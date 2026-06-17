@@ -91,14 +91,15 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
 
     try:
         # Spend Redeemer expects [ PolicyId, ASCII_Hex_Bytes ]
-        # Based on successful TX: {'constructor': 0, 'fields': [{'bytes': 'policy...'}, {'bytes': '3078...'}]}
+        # Definite length encoding (d87982...) is required by Ogmios/Ledger for some Plutus V3 scripts
         evm_hex_bytes = evm_token_home.replace('0x','').lower().encode('utf-8')
         redeemer_data = cbor2.CBORTag(121, [
             bytes.fromhex(contracts['demo_token_policy']),
             b'0x' + evm_hex_bytes
         ])
-        redeemer = Redeemer(RawPlutusData(to_indefinite_cbor(redeemer_data)))
-        txb.add_script_input(target_utxo, script=PlutusV3Script(bytes.fromhex(contracts['inbound_demo_cbor'])), redeemer=redeemer)
+        redeemer = Redeemer(RawPlutusData(cbor2.dumps(redeemer_data)))
+        script_bytes = bytes.fromhex(contracts['inbound_demo_cbor'])
+        txb.add_script_input(target_utxo, script=PlutusV3Script(script_bytes), redeemer=redeemer)
     except ValueError as e:
         return None, f"Configuration Error (hex parsing): {e}. Please check config/contract_accounts.json"
 
@@ -114,8 +115,8 @@ def receive_from_evm_msg(context, wallet, tx_hash, receiver_addr_str, network_na
     mint_assets[demo_policy] = Asset({demo_name: int(amount)})
     txb.mint = mint_assets
 
-    txb.add_minting_script(PlutusV3Script(bytes.fromhex(contracts['inbound_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
-    txb.add_minting_script(PlutusV3Script(bytes.fromhex(contracts['demo_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
+    txb.add_minting_script(PlutusV3Script(bytes.fromhex(contracts['inbound_token_cbor'])), Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [])))))
+    txb.add_minting_script(PlutusV3Script(bytes.fromhex(contracts['demo_token_cbor'])), Redeemer(RawPlutusData(cbor2.dumps(cbor2.CBORTag(121, [])))))
 
     val = Value(coin=2000000, multi_asset=MultiAsset({demo_policy: Asset({demo_name: int(amount)})}))
     txb.add_output(TransactionOutput(receiver_addr, amount=val))
