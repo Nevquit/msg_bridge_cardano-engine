@@ -20,8 +20,8 @@ class PrepareAssets:
         self.evm_url = self.rpc_config['evm'][network_name]['url']
         self.w3 = Web3(Web3.HTTPProvider(self.evm_url))
 
-    def _get_max_cases(self, direction):
-        folder = os.path.join("testcases", direction)
+    def _get_max_cases(self):
+        folder = os.path.join("testcases", "evm_to_cardano")
         if not os.path.exists(folder): return 0
         max_c = 0
         for f in os.listdir(folder):
@@ -32,10 +32,8 @@ class PrepareAssets:
 
     def generate_wallets(self, mnemonic_phrase=None):
         if not mnemonic_phrase: mnemonic_phrase = Mnemonic("english").generate(strength=256)
-        wallet_set_id = os.urandom(4).hex()
         # Ensure enough wallets for test cases
-        cardano_count = max(1, self._get_max_cases("cardano_to_evm"))
-        evm_count = self._get_max_cases("evm_to_cardano")
+        evm_count = self._get_max_cases()
         hd_wallet = HDWallet.from_mnemonic(mnemonic_phrase)
 
         def derive_cardano(index):
@@ -47,15 +45,14 @@ class PrepareAssets:
             return {"address": str(addr), "private_key": p_sk.to_primitive().hex()}
 
         main_cardano = derive_cardano(0)
-        batch_cardano = [derive_cardano(i) for i in range(1, cardano_count + 1)]
-        # Redeemer wallets use indices 100, 101...
-        redeemer_cardano = [derive_cardano(100 + i) for i in range(2)]
+        # Redeemer wallets use index 100
+        redeemer_cardano = [derive_cardano(100)]
 
         with open("current_cardano_wallets.json", "w") as f:
             json.dump([{
                 "mnemonic": mnemonic_phrase,
                 "main_wallet": main_cardano,
-                "batch_wallets": batch_cardano,
+                "batch_wallets": [],
                 "redeemer_wallets": redeemer_cardano
             }], f, indent=4)
 
@@ -67,7 +64,6 @@ class PrepareAssets:
 
     def check_all_cardano_balances(self, case_file, wallets_info):
         _, main, batch, redeemers = wallets_info
-        cases = pd.read_csv(os.path.join("testcases", "cardano_to_evm", case_file)).to_dict('records')
         with open('config/contract_accounts.json', 'r') as f: contracts = json.load(f)[self.network_name]['cardano']
         policy, token_name = contracts.get('demo_token_policy', ''), contracts.get('demo_token_name', '')
         def get_info(addr):
@@ -83,12 +79,9 @@ class PrepareAssets:
             except: return 0, 0
         c, t = get_info(main['address'])
         print(f"MAIN (User): {main['address']} | ADA: {c/1000000:.2f} | TOKEN: {t}")
-        for i, w in enumerate(batch):
-            c, t = get_info(w['address'])
-            print(f"BATCH {i+1}: {w['address'][:15]}... | ADA: {c/1000000:.2f} | TOKEN: {t}")
 
         for i, w in enumerate(redeemers):
-            role = "Inbound Agent" if i == 0 else "Outbound Agent"
+            role = "Inbound Agent"
             c, t = get_info(w['address'])
             print(f"{role}: {w['address'][:15]}... | ADA: {c/1000000:.2f} | TOKEN: {t}")
 
@@ -109,19 +102,11 @@ class PrepareAssets:
 
     def distribute_cardano_funds(self, case_file, wallets_info):
         _, main, batch, redeemers = wallets_info
-        cases = pd.read_csv(os.path.join("testcases", "cardano_to_evm", case_file)).to_dict('records')
-        with open('config/contract_accounts.json', 'r') as f: contracts = json.load(f)[self.network_name]['cardano']
         sk_bytes = bytes.fromhex(main['private_key'])
         main_sk = PaymentExtendedSigningKey.from_primitive(sk_bytes) if len(sk_bytes) == 64 else PaymentSigningKey.from_primitive(sk_bytes)
         main_addr = Address.from_primitive(main['address'])
         tx_builder = TransactionBuilder(self.cardano_context)
         tx_builder.add_input_address(main_addr)
-        for i, w in enumerate(batch):
-            # User wallets need ADA for fees and tokens for bridge
-            val = Value(coin=5000000)
-            if i < len(cases) and contracts.get('demo_token_policy'):
-                val.multi_asset = MultiAsset({PolicyId.from_primitive(contracts['demo_token_policy']): Asset({AssetName.from_primitive(bytes.fromhex(contracts.get('demo_token_name', ''))): int(cases[i]['amount_raw'])})})
-            tx_builder.add_output(TransactionOutput(Address.from_primitive(w['address']), amount=val))
 
         for w in redeemers:
             # Agents need ADA for collateral and script execution fees

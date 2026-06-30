@@ -19,16 +19,14 @@ from pycardano import BlockFrostChainContext, Network
 
 from utility.prepare_assets import PrepareAssets
 from utility.interaction_utils import (
-    get_network, get_direction, get_case_file,
+    get_network, get_case_file,
     get_cardano_wallet_info, get_evm_wallet_info, get_confirmed_address
 )
-from sendtransactions.cardano_msg import cardano_to_evm_msg
 from sendtransactions.evm_msg import Erc20TokenRemote
 
-def check_wallet_coverage(case_file, direction):
-    cases = pd.read_csv(os.path.join("testcases", direction, case_file))
-    is_cardano = direction == "cardano_to_evm"
-    res = get_cardano_wallet_info() if is_cardano else get_evm_wallet_info()
+def check_wallet_coverage(case_file):
+    cases = pd.read_csv(os.path.join("testcases", "evm_to_cardano", case_file))
+    res = get_evm_wallet_info()
 
     if not res:
         print("❌ Error: Wallets not created yet. Please use option 1 first.")
@@ -41,8 +39,8 @@ def check_wallet_coverage(case_file, direction):
         return False
     return True
 
-def main_menu(direction, case_file, network):
-    print(f"\n🚀 XPort Bridge Runner | Direction: {direction} | Case: {case_file} | Net: {network}")
+def main_menu(case_file, network):
+    print(f"\n🚀 XPort Bridge Runner | Direction: EVM -> Cardano | Case: {case_file} | Net: {network}")
     try:
         asset_preparer = PrepareAssets(network)
     except Exception as e:
@@ -50,24 +48,21 @@ def main_menu(direction, case_file, network):
         sys.exit(1)
 
     try:
-        cases_df = pd.read_csv(os.path.join("testcases", direction, case_file))
+        cases_df = pd.read_csv(os.path.join("testcases", "evm_to_cardano", case_file))
     except Exception as e:
         print(f"❌ Error reading case file: {e}")
         return
 
     while True:
-        is_cardano = direction == "cardano_to_evm"
-        target_name = "Cardano" if is_cardano else "EVM"
-
         print("\n" + "="*50)
-        print(f"📬 {target_name} -> {'EVM' if is_cardano else 'Cardano'} Bridge Menu")
+        print(f"📬 EVM -> Cardano Bridge Menu")
         print("="*50)
         print("1. 🛠️  Create Wallets (Cardano + EVM)")
-        print(f"2. 🔍 Check {target_name} Balances")
-        print(f"3. 💸 Distribute Funds ({target_name})")
+        print(f"2. 🔍 Check EVM Balances")
+        print(f"3. 💸 Distribute Funds (EVM)")
         print("4. 🚀 Run Transactions")
         print("5. 🧹 Sweep Assets")
-        print("6. 🔙 Change Direction/Case")
+        print("6. 🔙 Change Case")
         print("7. 🚪 Exit")
         print("="*50)
         choice = input("👉 Choice: ").strip()
@@ -78,69 +73,26 @@ def main_menu(direction, case_file, network):
             asset_preparer.generate_wallets(mnemonic)
 
         elif choice == '2':
-            if check_wallet_coverage(case_file, direction):
-                if is_cardano:
-                    info = get_cardano_wallet_info()
-                    asset_preparer.check_all_cardano_balances(case_file, info)
-                else:
-                    info = get_evm_wallet_info()
-                    asset_preparer.check_all_evm_balances(case_file, info)
+            if check_wallet_coverage(case_file):
+                info = get_evm_wallet_info()
+                asset_preparer.check_all_evm_balances(case_file, info)
 
         elif choice == '3':
-            if check_wallet_coverage(case_file, direction):
-                if is_cardano:
-                    info = get_cardano_wallet_info()
-                    asset_preparer.distribute_cardano_funds(case_file, info)
-                else:
-                    info = get_evm_wallet_info()
-                    asset_preparer.distribute_evm_funds(case_file, info)
+            if check_wallet_coverage(case_file):
+                info = get_evm_wallet_info()
+                asset_preparer.distribute_evm_funds(case_file, info)
 
         elif choice == '4':
-            if check_wallet_coverage(case_file, direction):
-                if is_cardano:
-                    run_cardano_to_evm(case_file, network, asset_preparer.cardano_context)
-                else:
-                    run_evm_to_cardano(case_file, network)
+            if check_wallet_coverage(case_file):
+                run_evm_to_cardano(case_file, network)
 
         elif choice == '5':
-            dest_addr = get_confirmed_address(f"👉 Enter Destination {target_name} Address: ")
-            if is_cardano:
-                info = get_cardano_wallet_info()
-                if info: asset_preparer.sweep_cardano_assets(dest_addr, info)
-            else:
-                info = get_evm_wallet_info()
-                if info: asset_preparer.sweep_evm_assets(dest_addr, info[:3])
+            dest_addr = get_confirmed_address(f"👉 Enter Destination EVM Address: ")
+            info = get_evm_wallet_info()
+            if info: asset_preparer.sweep_evm_assets(dest_addr, info[:3])
 
         elif choice == '6': return
         elif choice == '7': sys.exit(0)
-
-def run_cardano_to_evm(case_file, network, context):
-    info = get_cardano_wallet_info()
-    if not info: return
-    _, _, batch_wallets, _ = info
-    cases = pd.read_csv(os.path.join("testcases", "cardano_to_evm", case_file)).to_dict('records')
-
-    with open('config/contract_accounts.json', 'r') as f:
-        contracts = json.load(f)[network]['cardano']
-
-    print(f"🚀 Running {len(cases)} Cardano -> EVM transactions...")
-    for i, case in enumerate(cases):
-        if i >= len(batch_wallets): break
-        wallet = batch_wallets[i]
-        print(f"[{i+1}/{len(cases)}] Sending from {wallet['address'][:10]}...")
-        tx_id, err = cardano_to_evm_msg(
-            context,
-            wallet['private_key'],
-            wallet['address'],
-            case['to_address'],
-            case['amount_raw'],
-            contracts['outbound_demo_address'],
-            contracts.get('outbound_token_policy', ''),
-            demo_token_policy=contracts.get('demo_token_policy'),
-            demo_token_name=contracts.get('demo_token_name')
-        )
-        if tx_id: print(f"  ✅ Success! TX ID: {tx_id}")
-        else: print(f"  ❌ Error: {err}")
 
 def run_evm_to_cardano(case_file, network):
     info = get_evm_wallet_info()
@@ -184,12 +136,11 @@ def run():
     print("\n👋 Welcome to Cardano-EVM XPort Bridge Runner")
     network = get_network()
     while True:
-        direction = get_direction()
-        case_file = get_case_file(direction)
+        case_file = get_case_file()
         if not case_file:
             print("❌ No CSV files found.")
             continue
-        main_menu(direction, case_file, network)
+        main_menu(case_file, network)
 
 if __name__ == "__main__":
     try: run()

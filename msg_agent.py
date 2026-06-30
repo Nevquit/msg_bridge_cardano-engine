@@ -30,8 +30,6 @@ class MsgAgent:
         self.demo_policy = PolicyId.from_primitive(self.contracts['demo_token_policy'])
         self.demo_name = AssetName.from_primitive(bytes.fromhex(self.contracts['demo_token_name']))
         self.inbound_policy = PolicyId.from_primitive(self.contracts['inbound_token_policy'])
-        self.outbound_policy = PolicyId.from_primitive(self.contracts.get('outbound_token_policy', ''))
-        self.outbound_token_name = AssetName.from_primitive(b"OutboundTokenCoin")
 
     def get_plutus_address(self, addr_str):
         """Converts Bech32 address to Plutus Address structure for CBOR."""
@@ -99,67 +97,17 @@ class MsgAgent:
             print(f"✅ Inbound Processed: {stx.id}")
         except Exception as e: print(f"❌ Inbound Error: {e}")
 
-    def process_outbound(self, wallet):
-        print(f"🔍 Monitoring Outbound: {self.contracts['outbound_demo_address']}")
-        uts = self.context.utxos(self.contracts['outbound_demo_address']) or []
-        for u in uts:
-            if not u.output.datum: continue
-            try:
-                datum_bytes = u.output.datum.cbor if hasattr(u.output.datum, "cbor") else u.output.datum.to_cbor()
-                datum_obj = cbor2.loads(datum_bytes)
-                amount = datum_obj.value[1]
-                self.execute_outbound_tx(u, wallet, amount)
-            except Exception as e: print(f"  ❌ Outbound Parse Error: {e}")
-
-    def execute_outbound_tx(self, utxo, wallet, amount):
-        sk = get_signer(wallet['private_key'])
-        sender_addr = Address.from_primitive(wallet['address'])
-        txb = TransactionBuilder(self.context)
-        txb.add_input_address(sender_addr)
-        collateral = next((u for u in (self.context.utxos(wallet['address']) or []) if u.output.amount.coin > 5000000), None)
-        if not collateral: return
-        txb.collaterals.append(collateral)
-
-        xport_plutus_addr = self.get_plutus_address(self.contracts['xport'])
-        redeemer_data = cbor2.CBORTag(121, [
-            bytes.fromhex(self.contracts['demo_token_policy']),
-            self.demo_name.payload,
-            xport_plutus_addr,
-            bytes.fromhex(self.evm_token_home.replace('0x','').lower())
-        ])
-        txb.add_script_input(utxo, script=PlutusV2Script(bytes.fromhex(self.contracts['outbound_demo_cbor'])), redeemer=Redeemer(RawPlutusData(to_indefinite_cbor(redeemer_data))))
-
-        mint_assets = MultiAsset()
-        mint_assets[self.demo_policy] = Asset({self.demo_name: -int(amount)})
-        if self.outbound_policy:
-            mint_assets[self.outbound_policy] = Asset({self.outbound_token_name: 1})
-        txb.mint = mint_assets
-
-        txb.add_minting_script(PlutusV2Script(bytes.fromhex(self.contracts['demo_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
-        if self.outbound_policy:
-            txb.add_minting_script(PlutusV2Script(bytes.fromhex(self.contracts['outbound_token_cbor'])), Redeemer(RawPlutusData(to_indefinite_cbor(cbor2.CBORTag(121, [])))))
-
-        txb.add_output(TransactionOutput(Address.from_primitive(self.contracts['xport']), amount=Value(coin=2000000, multi_asset=MultiAsset({self.outbound_policy: Asset({self.outbound_token_name: 1})})) if self.outbound_policy else Value(coin=2000000), datum=utxo.output.datum))
-
-        try:
-            stx = txb.build_and_sign([sk], change_address=sender_addr)
-            self.context.submit_tx(stx.to_cbor())
-            print(f"✅ Outbound Relayed: {stx.id}")
-        except Exception as e: print(f"❌ Outbound Error: {e}")
-
     def run(self):
         if not os.path.exists("current_cardano_wallets.json"): return print("❌ No wallets.")
         with open("current_cardano_wallets.json", "r") as f:
             data = json.load(f)[0]
             redeemers = data.get('redeemer_wallets', data.get('batch_wallets'))
             inbound_wallet = redeemers[0]
-            outbound_wallet = redeemers[1]
 
         print(f"🚀 Msg Agent Started ({self.network_name}). Polling scripts...")
         while True:
             try:
                 self.process_inbound(inbound_wallet)
-                self.process_outbound(outbound_wallet)
                 time.sleep(15)
             except KeyboardInterrupt: break
             except Exception as e: print(f"⚠️ Agent Error: {e}"); time.sleep(10)
