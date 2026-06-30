@@ -6,13 +6,8 @@ def get_network():
     c = input("Choice: ").strip()
     return 'mainnet' if c == '1' else 'preprod'
 
-def get_direction():
-    print("\n👉 Select Direction:\n1. Cardano -> EVM (Outbound)\n2. EVM -> Cardano (Inbound)")
-    c = input("Choice: ").strip()
-    return 'cardano_to_evm' if c == '1' else 'evm_to_cardano'
-
-def get_case_file(direction):
-    d = os.path.join("testcases", direction)
+def get_case_file():
+    d = os.path.join("testcases", "evm_to_cardano")
     files = [f for f in os.listdir(d) if f.endswith('.csv')]
     if not files: return None
     print("\n👉 Select Case File:")
